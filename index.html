@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sports Physics Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <section id="nameScreen" class="screen auth-screen">
+      <div class="auth-backdrop"></div>
+      <div class="card auth-card">
+        <p class="badge">Live Training Console</p>
+        <h1 class="hero-title">ShotLab</h1>
+        <p class="hero-subtitle">Build the shot. Read the motion. Beat the challenge.</p>
+        <p class="hero-welcome">A sports simulator where every arc, slide, and miss is explained by real-time physics data.</p>
+        <div class="hero-pill-row" aria-hidden="true">
+          <span class="hero-pill">Arc</span>
+          <span class="hero-pill">Force</span>
+          <span class="hero-pill">Flight Data</span>
+        </div>
+        <div class="hero-actions">
+          <button id="guestBtn" class="btn btn-primary">Enter the Lab</button>
+        </div>
+        <p class="auth-footnote">Session mode · no sign-in needed</p>
+        <p id="authMessage" class="message"></p>
+      </div>
+    </section>
+
+    <section id="sportScreen" class="screen hidden auth-screen">
+      <div class="auth-backdrop"></div>
+      <div class="card auth-card">
+        <h2 class="hero-title">Pick Your Arena</h2>
+        <p class="hero-subtitle">Three sports. Three motion styles. One physics engine.</p>
+        <div class="sport-grid" style="margin-top: 1.4rem;">
+          <button class="sport-option selected" data-sport="basketball">
+            <strong>Hoops</strong>
+            <span>High arc · rim target</span>
+          </button>
+          <button class="sport-option" data-sport="soccer">
+            <strong>Pitch</strong>
+            <span>Lift · drop · net</span>
+          </button>
+          <button class="sport-option" data-sport="hockey">
+            <strong>Ice</strong>
+            <span>Fast line · moving goalie</span>
+          </button>
+        </div>
+        <div class="level-actions" style="margin-top: 1.2rem;">
+          <button id="sportBackBtn" class="btn btn-secondary">Back</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="levelScreen" class="screen hidden">
+      <div class="card level-card">
+        <h2>Welcome, <span id="welcomeName"></span></h2>
+        <p class="sub">Choose your training pressure.</p>
+        <div class="level-grid">
+          <button class="level-option selected" data-level="easy">
+            <strong>Easy</strong>
+          </button>
+          <button class="level-option" data-level="medium">
+            <strong>Medium</strong>
+          </button>
+          <button class="level-option" data-level="hard">
+            <strong>Hard</strong>
+          </button>
+        </div>
+        <section class="readout level-challenge-box">
+          <h3 id="challengeTitle">Challenge</h3>
+          <p id="challengeSummary" class="coord-note"></p>
+          <div id="challengeList" class="challenge-list"></div>
+        </section>
+        <div class="level-actions">
+          <button id="startGameBtn" class="btn btn-primary">Start Run</button>
+          <button id="changeNameBtn" class="btn btn-secondary">Change Sport</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="screen hidden">
+      <header class="card topbar">
+        <div>
+          <h2 id="hudTitle">Physics Hoops Lab</h2>
+          <p><strong id="hudName"></strong> · <span id="hudLevel"></span></p>
+        </div>
+        <p id="lockInfo" class="lock-info"></p>
+      </header>
+
+      <div class="layout">
+        <section class="card court-card">
+          <div class="court-stage">
+            <div id="verticalRow" class="control-row hidden">
+              <label for="verticalInput">Player Height <span id="verticalValue">390</span></label>
+              <input id="verticalInput" type="range" min="150" max="450" step="5" value="390" />
+            </div>
+            <canvas id="courtCanvas" width="980" height="560" aria-label="Basketball physics simulator"></canvas>
+          </div>
+          <section class="readout readout-court">
+            <h3>Live Motion Data</h3>
+            <p id="coordNote" class="coord-note"></p>
+            <div class="readout-grid">
+              <div><span>Initial speed</span><strong id="speedReadout">0.0 px/s</strong></div>
+              <div><span>vx (horizontal)</span><strong id="vxReadout">0.0 px/s</strong></div>
+              <div><span>vy (vertical)</span><strong id="vyReadout">0.0 px/s</strong></div>
+              <div><span>ax (net)</span><strong id="axReadout">0.0 px/s²</strong></div>
+              <div><span>ay (net)</span><strong id="ayReadout">0.0 px/s²</strong></div>
+              <div><span>Flight time t</span><strong id="timeReadout">0.00 s</strong></div>
+            </div>
+            <div class="equations">
+              <p>x = x₀ + vₓt → <span id="xEqReadout"></span></p>
+              <p>y = y₀ + vᵧt + ½at² → <span id="yEqReadout"></span></p>
+            </div>
+          </section>
+
+        </section>
+
+        <aside class="card panel">
+          <div class="stats">
+            <div><span>Score</span><strong id="scoreStat">0</strong></div>
+            <div><span>Shots</span><strong id="shotsStat">0</strong></div>
+            <div><span>Streak</span><strong id="streakStat">0</strong></div>
+            <div><span>Best</span><strong id="bestStat">0</strong></div>
+          </div>
+
+          <div class="control-row">
+            <label for="angleInput">Angle <span id="angleValue">52°</span></label>
+            <input id="angleInput" type="range" min="20" max="85" value="52" />
+          </div>
+
+          <div class="control-row">
+            <label for="powerInput">Power <span id="powerValue">58</span></label>
+            <input id="powerInput" type="range" min="30" max="92" value="58" />
+          </div>
+
+          <div class="control-row">
+            <label for="gravityInput">Gravity <span id="gravityValue">9.8</span></label>
+            <input id="gravityInput" type="range" min="6" max="14" step="0.1" value="9.8" />
+          </div>
+
+          <div class="control-row">
+            <label for="distanceInput">Launch Distance <span id="distanceValue">Mid-range</span></label>
+            <input id="distanceInput" type="range" min="100" max="260" step="1" value="130" />
+          </div>
+
+          <div id="spotRow" class="spot-row hidden">
+            <p id="spotInfo" class="sub">Spot challenge</p>
+          </div>
+
+          <div class="preview-row">
+            <input id="previewToggle" type="checkbox" checked />
+            <label for="previewToggle">Show trajectory line guide</label>
+          </div>
+
+          <div class="decomposition-row">
+            <div><span>Launch vx</span><strong id="sideVxReadout">0.0 px/s</strong></div>
+            <div><span>Launch vy</span><strong id="sideVyReadout">0.0 px/s</strong></div>
+          </div>
+
+          <div class="actions">
+            <button id="shootBtn" class="btn btn-primary">Launch</button>
+            <button id="resetBtn" class="btn btn-secondary">Reset Shot</button>
+            <button id="backBtn" class="btn btn-secondary">Back to Levels</button>
+          </div>
+
+          <p id="feedbackMessage" class="message">Tune values and shoot.</p>
+        </aside>
+      </div>
+
+      <div id="shotReview" class="shot-review hidden">
+        <div class="card shot-review-card">
+          <div class="shot-review-head">
+            <h3>Post-Shot Breakdown</h3>
+            <p id="shotGraphMeta" class="sub">x = distance, y = height.</p>
+          </div>
+          <div class="graph-container">
+            <canvas id="shotGraphCanvas" width="980" height="290" aria-label="Shot trajectory graph"></canvas>
+            <div id="graphTooltip" class="graph-tooltip hidden">
+              <p id="tooltipContent"></p>
+            </div>
+          </div>
+          <div id="shotSummary" class="shot-summary">
+            <p id="summaryText"></p>
+          </div>
+          <div class="shot-review-actions">
+            <button id="reviewTryAgainBtn" class="btn btn-primary">Try Again</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="shotNotice" class="shot-notice hidden">
+        <div class="card shot-notice-card">
+          <h3 id="shotNoticeTitle">Shot Result</h3>
+          <p id="shotNoticeMessage" class="sub">Result text</p>
+          <div class="shot-notice-actions">
+            <button id="nextChallengeBtn" class="btn btn-secondary hidden">Try Next Challenge</button>
+            <button id="tryAgainBtn" class="btn btn-primary">Try Again</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
+

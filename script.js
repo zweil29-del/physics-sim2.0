@@ -1,0 +1,3288 @@
+const nameScreen = document.getElementById("nameScreen");
+const sportScreen = document.getElementById("sportScreen");
+const levelScreen = document.getElementById("levelScreen");
+const gameScreen = document.getElementById("gameScreen");
+
+const guestBtn = document.getElementById("guestBtn");
+const authMessage = document.getElementById("authMessage");
+const sportBackBtn = document.getElementById("sportBackBtn");
+const sportOptions = Array.from(document.querySelectorAll("[data-sport]"));
+
+const welcomeName = document.getElementById("welcomeName");
+const levelOptions = Array.from(document.querySelectorAll(".level-option"));
+const startGameBtn = document.getElementById("startGameBtn");
+const changeNameBtn = document.getElementById("changeNameBtn");
+const challengeTitle = document.getElementById("challengeTitle");
+const challengeSummary = document.getElementById("challengeSummary");
+const challengeList = document.getElementById("challengeList");
+
+const hudName = document.getElementById("hudName");
+const hudTitle = document.getElementById("hudTitle");
+const hudLevel = document.getElementById("hudLevel");
+const lockInfo = document.getElementById("lockInfo");
+const feedbackMessage = document.getElementById("feedbackMessage");
+
+const scoreStat = document.getElementById("scoreStat");
+const shotsStat = document.getElementById("shotsStat");
+const streakStat = document.getElementById("streakStat");
+const bestStat = document.getElementById("bestStat");
+
+const angleInput = document.getElementById("angleInput");
+const powerInput = document.getElementById("powerInput");
+const gravityInput = document.getElementById("gravityInput");
+const distanceInput = document.getElementById("distanceInput");
+const verticalInput = document.getElementById("verticalInput");
+const previewToggle = document.getElementById("previewToggle");
+const distanceValue = document.getElementById("distanceValue");
+const spotRow = document.getElementById("spotRow");
+const verticalValue = document.getElementById("verticalValue");
+const verticalRow = document.getElementById("verticalRow");
+const spotInfo = document.getElementById("spotInfo");
+
+const angleValue = document.getElementById("angleValue");
+const powerValue = document.getElementById("powerValue");
+const gravityValue = document.getElementById("gravityValue");
+
+const speedReadout = document.getElementById("speedReadout");
+const vxReadout = document.getElementById("vxReadout");
+const vyReadout = document.getElementById("vyReadout");
+const sideVxReadout = document.getElementById("sideVxReadout");
+const sideVyReadout = document.getElementById("sideVyReadout");
+const axReadout = document.getElementById("axReadout");
+const ayReadout = document.getElementById("ayReadout");
+const timeReadout = document.getElementById("timeReadout");
+const xEqReadout = document.getElementById("xEqReadout");
+const yEqReadout = document.getElementById("yEqReadout");
+const coordNote = document.getElementById("coordNote");
+
+const shootBtn = document.getElementById("shootBtn");
+const resetBtn = document.getElementById("resetBtn");
+const backBtn = document.getElementById("backBtn");
+const tryAgainBtn = document.getElementById("tryAgainBtn");
+const reviewTryAgainBtn = document.getElementById("reviewTryAgainBtn");
+const shotNotice = document.getElementById("shotNotice");
+const shotNoticeTitle = document.getElementById("shotNoticeTitle");
+const shotNoticeMessage = document.getElementById("shotNoticeMessage");
+const nextChallengeBtn = document.getElementById("nextChallengeBtn");
+const shotReview = document.getElementById("shotReview");
+const shotGraphMeta = document.getElementById("shotGraphMeta");
+const shotGraphCanvas = document.getElementById("shotGraphCanvas");
+const shotGraphCtx = shotGraphCanvas.getContext("2d");
+const graphTooltip = document.getElementById("graphTooltip");
+const tooltipContent = document.getElementById("tooltipContent");
+const summaryText = document.getElementById("summaryText");
+
+const canvas = document.getElementById("courtCanvas");
+const ctx = canvas.getContext("2d");
+
+const floorY = 500;
+const launcher = { x: 130, y: floorY - 110 };
+const rim = { left: 818, right: 874, y: 230 };
+const backboard = { x: 890, y: 150, w: 10, h: 128 };
+
+const soccerGoal = { x: 920, centerY: 280, w: 60, h: 100 };
+const soccerWall = { x: 750, y: 180, w: 8, h: 140, active: true };
+const soccerGoalie = { x: 870, y: 280, r: 16, vx: 0, speed: 120, minY: 220, maxY: 340, t: 0 };
+
+const hockeyGoal = { x: 920, centerY: 280, w: 50, h: 80 };
+const hockeyWall = { x: 750, y: 190, w: 8, h: 120, active: false };
+const hockeyGoalie = { x: 880, y: 280, r: 11, vx: 0, speed: 55, minY: 245, maxY: 315, t: 0 };
+
+// Hockey player sprite (placed at assets/hockey_player.png)
+const hockeySprite = new Image();
+let hockeySpriteLoaded = false;
+const _hockeySpriteCandidates = ["assets/hockey_player.png", "assets/hockery_player.png"];
+let _hockeySpriteIdx = 0;
+function _tryLoadHockeySprite() {
+  hockeySprite.src = _hockeySpriteCandidates[_hockeySpriteIdx];
+}
+hockeySprite.onload = () => {
+  hockeySpriteLoaded = true;
+};
+hockeySprite.onerror = () => {
+  _hockeySpriteIdx += 1;
+  if (_hockeySpriteIdx < _hockeySpriteCandidates.length) {
+    _tryLoadHockeySprite();
+  } else {
+    console.warn("Hockey sprite failed to load from any candidate paths. Falling back to vector player.");
+  }
+};
+_tryLoadHockeySprite();
+
+// Soccer player sprite — transparent kicker with a similar top-down game angle
+const soccerSprite = new Image();
+let soccerSpriteLoaded = false;
+const _soccerSpriteCandidates = ["assets/ChatGPT Image May 22, 2026, 08_28_32 PM Background Removed.png", "assets/soccer_player.png"];
+let _soccerSpriteIdx = 0;
+function _tryLoadSoccerSprite() {
+  soccerSprite.src = _soccerSpriteCandidates[_soccerSpriteIdx];
+}
+soccerSprite.onload = () => {
+  soccerSpriteLoaded = true;
+  // If this sprite will also be used as the goalie image, set a sensible collision radius
+  // based on the scaled sprite size (goalie uses scale 0.10).
+    try {
+    const goalieScale = 0.07;
+    const gw = soccerSprite.width || 100;
+    const gh = soccerSprite.height || 100;
+    const drawW = gw * goalieScale;
+    const drawH = gh * goalieScale;
+    // approximate radius as a fraction of the smaller dimension
+    soccerGoalie.r = Math.max(8, Math.round(Math.min(drawW, drawH) * 0.34));
+  } catch (e) {
+    // ignore sizing errors
+  }
+};
+soccerSprite.onerror = () => {
+  _soccerSpriteIdx += 1;
+  if (_soccerSpriteIdx < _soccerSpriteCandidates.length) {
+    _tryLoadSoccerSprite();
+  } else {
+    console.warn("Soccer sprite failed to load from any candidate paths. Falling back to vector player.");
+  }
+};
+_tryLoadSoccerSprite();
+
+// Goalie (red) sprite — the moving goalie next to the net
+const goalieSprite = new Image();
+let goalieSpriteLoaded = false;
+// First candidate is the attached image (contains spaces), second is a fallback name
+const _goalieSpriteCandidates = ["assets/ChatGPT Image May 22, 2026, 02_25_40 PM.png", "assets/goalie_sprite.png"];
+let _goalieSpriteIdx = 0;
+function _tryLoadGoalieSprite() {
+  goalieSprite.src = _goalieSpriteCandidates[_goalieSpriteIdx];
+}
+goalieSprite.onload = () => {
+  goalieSpriteLoaded = true;
+};
+goalieSprite.onerror = () => {
+  _goalieSpriteIdx += 1;
+  if (_goalieSpriteIdx < _goalieSpriteCandidates.length) {
+    _tryLoadGoalieSprite();
+  } else {
+    console.warn("Goalie sprite failed to load from any candidate paths. Falling back to vector goalie.");
+  }
+};
+_tryLoadGoalieSprite();
+
+// Optional girl goalie sprite (user-supplied). Preferred for soccer goalie when present.
+const girlGoalieSprite = new Image();
+let girlGoalieSpriteLoaded = false;
+const _girlGoalieCandidates = ["assets/girl_goalie.png", "assets/ChatGPT Image May 22, 2026, 10_43_28 PM Background Removed.png"];
+let _girlGoalieIdx = 0;
+function _tryLoadGirlGoalie() {
+  girlGoalieSprite.src = _girlGoalieCandidates[_girlGoalieIdx];
+}
+girlGoalieSprite.onload = () => {
+  girlGoalieSpriteLoaded = true;
+  try {
+    const goalieScale = 0.07;
+    const gw = girlGoalieSprite.width || 100;
+    const gh = girlGoalieSprite.height || 100;
+    const drawW = gw * goalieScale;
+    const drawH = gh * goalieScale;
+    soccerGoalie.r = Math.max(6, Math.round(Math.min(drawW, drawH) * 0.34));
+  } catch (e) {}
+};
+girlGoalieSprite.onerror = () => {
+  _girlGoalieIdx += 1;
+  if (_girlGoalieIdx < _girlGoalieCandidates.length) {
+    _tryLoadGirlGoalie();
+  } else {
+    // silent fallback; the code will use soccerSprite or vector fallback
+  }
+};
+_tryLoadGirlGoalie();
+
+// Basketball player sprite (optional)
+const basketballSprite = new Image();
+let basketballSpriteLoaded = false;
+const _basketballSpriteCandidates = ["assets/ChatGPT Image May 22, 2026, 11_28_12 PM Background Removed.png"];
+let _basketballSpriteIdx = 0;
+function _tryLoadBasketballSprite() {
+  basketballSprite.src = _basketballSpriteCandidates[_basketballSpriteIdx];
+}
+basketballSprite.onload = () => {
+  basketballSpriteLoaded = true;
+  console.log("Basketball sprite loaded:", basketballSprite.src);
+};
+basketballSprite.onerror = () => {
+  _basketballSpriteIdx += 1;
+  if (_basketballSpriteIdx < _basketballSpriteCandidates.length) _tryLoadBasketballSprite();
+  else console.warn("Basketball sprite failed to load from any candidate paths.");
+};
+_tryLoadBasketballSprite();
+const RIM_NODE_RADIUS = 7;
+const LAUNCH_SPEED_SCALE = 6.6;
+const GRAVITY_PIXEL_SCALE = 34;
+const PIXELS_TO_METERS = 0.02;
+const HOCKEY_SPEED_MULTIPLIER = 0.75;
+const LAUNCH_MIN_X = 110;
+const LAUNCH_MAX_X = 860;
+const SOCCER_DISTANCE_LINES = [
+  { x: 420, color: "#74d7ff", label: "Penalty Mark" },
+  { x: 260, color: "#ffd06d", label: "Mid-field" },
+  { x: 120, color: "#8cffd5", label: "Center Line" }
+];
+const HOCKEY_DISTANCE_LINES = [
+  { x: 460, color: "#2f5fb3", label: "Near Blue Line" },
+  { x: 300, color: "#f47b68", label: "Center Ice" },
+  { x: 140, color: "#4fb2ff", label: "Far Blue Line" }
+];
+const DISTANCE_LINES = [
+  { x: 420, color: "#8cffd5", label: "Paint Line" },
+  { x: 260, color: "#49b8ff", label: "Mid-range Line" },
+  { x: 120, color: "#ffd06d", label: "Three-point Line" }
+];
+
+const ball = {
+  x: launcher.x + 38,
+  y: launcher.y - 18,
+  x0: launcher.x + 38,
+  y0: launcher.y - 18,
+  vx: 0,
+  vy: 0,
+  vx0: 0,
+  vy0: 0,
+  ax: 0,
+  ay: 0,
+  t: 0,
+  path: [],
+  r: 12,
+  flying: false,
+  scored: false,
+  floorBounces: 0,
+  boardBounces: 0,
+  hitGoalieFirst: false,
+  endAfterTime: null
+};
+
+const game = {
+  playerName: "Guest",
+  userKey: null,
+  isGuest: true,
+  guestBest: 0,
+  sport: "basketball",
+  level: "easy",
+  score: 0,
+  shots: 0,
+  streak: 0,
+  best: 0,
+  maxHeight: ball.y,
+  currentSpotIndex: 0,
+  spotMakes: [],
+  shotResolved: false
+};
+
+let activeShotPhysics = null;
+const dragState = { active: false, pointerId: null };
+const LEVEL_ORDER = ["easy", "medium", "hard"];
+const confettiPieces = [];
+
+const levels = {
+  easy: {
+    label: "Easy",
+    text: "Basics",
+    distanceMode: { type: "spots", spots: [260], labels: ["Mid-range Line"], makesPerSpot: 2 },
+    inputMode: "slider",
+    showPreview: true,
+    showLivePath: true,
+    challengeSummary: "Starter",
+    challenges: [
+      "2 makes from Mid-range",
+      "Try 2 angle values",
+      "Try 2 power values"
+    ],
+    sliderRules: {
+      angle: { min: 20, max: 85, step: 1, value: 52 },
+      power: { min: 30, max: 100, step: 1, value: 62 },
+      gravity: { min: 6, max: 14, step: 0.1, value: 9.8 }
+    },
+    forgiveness: 16
+  },
+  medium: {
+    label: "Medium",
+    text: "Precision",
+    distanceMode: {
+      type: "spots",
+      spots: [280, 80],
+      labels: ["Paint Line", "Three-point Line"],
+      makesPerSpot: 3
+    },
+    inputMode: "typed",
+    showPreview: true,
+    showLivePath: true,
+    challengeSummary: "Tighter targets",
+    challenges: [
+      "3 makes from Paint",
+      "3 makes from Three-point",
+      "Use high and low angles"
+    ],
+    sliderRules: {
+      angle: { min: 40, max: 64, step: 2, value: 52 },
+      power: { min: 44, max: 80, step: 4, value: 64 },
+      gravity: { min: 9.0, max: 10.8, step: 0.3, value: 9.9 }
+    },
+    forgiveness: 10
+  },
+  hard: {
+    label: "Hard",
+    text: "No live path",
+    distanceMode: {
+      type: "spots",
+      spots: [280, 180, 80],
+      labels: ["Paint Line", "Mid-range Line", "Three-point Line"],
+      makesPerSpot: 3
+    },
+    inputMode: "typed",
+    showPreview: false,
+    showLivePath: false,
+    challengeSummary: "Final test",
+    challenges: [
+      "3 makes from each line (9 total)",
+      "No guide, no live path",
+      "Change gravity and still finish"
+    ],
+    sliderRules: {
+      angle: { min: 38, max: 72, step: 1, value: 54 },
+      power: { min: 46, max: 84, step: 2, value: 68 },
+      gravity: { min: 8.6, max: 11.6, step: 0.2, value: 9.8 }
+    },
+    forgiveness: 6
+  }
+};
+
+const sportLevelOverrides = {
+  basketball: {
+    easy: {
+      text: "Arc Basics",
+      distanceMode: { type: "spots", spots: [260], labels: ["Mid-range Line"], makesPerSpot: 2 },
+      inputMode: "slider",
+      showPreview: true,
+      showLivePath: true,
+      challengeSummary: "Basketball Easy: learn the arc",
+      challenges: ["Make 2 from Mid-range", "Use the guide line", "Try a low and high arc"],
+      sliderRules: {
+        angle: { min: 25, max: 82, step: 1, value: 52 },
+        power: { min: 32, max: 96, step: 1, value: 62 },
+        gravity: { min: 6, max: 14, step: 0.1, value: 9.8 }
+      },
+      forgiveness: 18
+    },
+    medium: {
+      text: "Two Spots",
+      distanceMode: { type: "spots", spots: [420, 260], labels: ["Paint Line", "Mid-range Line"], makesPerSpot: 2 },
+      inputMode: "typed",
+      showPreview: true,
+      showLivePath: true,
+      challengeSummary: "Basketball Medium: fixed-shot challenge",
+      challenges: ["Make 2 from Paint", "Make 2 from Deep Mid-range", "Use the trajectory guide with fixed shot settings"],
+      sliderRules: {
+        angle: { min: 35, max: 72, step: 1, value: 54 },
+        power: { min: 42, max: 96, step: 1, value: 68 },
+        gravity: { min: 8.4, max: 12.4, step: 0.1, value: 9.8 }
+      },
+      forgiveness: 11
+    },
+    hard: {
+      text: "No Preview",
+      distanceMode: { type: "spots", spots: [420, 260, 120], labels: ["Paint Line", "Mid-range", "Three-point"], makesPerSpot: 2 },
+      inputMode: "typed",
+      showPreview: false,
+      showLivePath: false,
+      challengeSummary: "Basketball Hard: three spots without the guide",
+      challenges: ["Make 2 from each spot", "No trajectory guide", "Use equations to predict the arc"],
+      sliderRules: {
+        angle: { min: 38, max: 70, step: 1, value: 56 },
+        power: { min: 48, max: 100, step: 1, value: 72 },
+        gravity: { min: 8.8, max: 11.8, step: 0.1, value: 9.8 }
+      },
+      forgiveness: 7
+    }
+  },
+  soccer: {
+    easy: {
+      text: "Open Goal",
+      distanceMode: { type: "spots", spots: [420], labels: ["Penalty Mark"], makesPerSpot: 2 },
+      inputMode: "slider",
+      showPreview: true,
+      showLivePath: true,
+      challengeSummary: "Soccer Easy: open goal practice",
+      challenges: ["Score 2 goals from the Penalty Mark", "Use power to reach the net", "Use gravity to control drop"],
+      sliderRules: {
+        angle: { min: 5, max: 55, step: 1, value: 24 },
+        power: { min: 30, max: 100, step: 1, value: 62 },
+        gravity: { min: 5, max: 16, step: 0.1, value: 9.8 }
+      },
+      forgiveness: 18
+    },
+    medium: {
+      text: "Wall + Goalie",
+      distanceMode: { type: "spots", spots: [420, 260], labels: ["Penalty Mark", "Mid-field"], makesPerSpot: 2 },
+      inputMode: "typed",
+      showPreview: true,
+      showLivePath: true,
+      challengeSummary: "Soccer Medium: fixed-shot challenge",
+      challenges: ["Score 2 from Penalty Mark", "Score 2 from Mid-field", "Use the trajectory guide with fixed shot settings"],
+      sliderRules: {
+        angle: { min: 8, max: 48, step: 1, value: 28 },
+        power: { min: 40, max: 100, step: 1, value: 68 },
+        gravity: { min: 7, max: 18, step: 0.1, value: 9.8 }
+      },
+      forgiveness: 11
+    },
+    hard: {
+      text: "No Preview",
+      distanceMode: { type: "spots", spots: [420, 260, 120], labels: ["Penalty Mark", "Mid-field", "Center Line"], makesPerSpot: 2 },
+      inputMode: "typed",
+      showPreview: false,
+      showLivePath: false,
+      challengeSummary: "Soccer Hard: no guide with obstacles",
+      challenges: ["Score 2 from each line", "No trajectory guide", "Predict the drop before shooting"],
+      sliderRules: {
+        angle: { min: 10, max: 44, step: 1, value: 30 },
+        power: { min: 48, max: 100, step: 1, value: 72 },
+        gravity: { min: 8, max: 20, step: 0.1, value: 10.2 }
+      },
+      forgiveness: 7
+    }
+  },
+  hockey: {
+    easy: {
+      text: "Open Net",
+      distanceMode: { type: "spots", spots: [460], labels: ["Near Blue Line"], makesPerSpot: 2 },
+      inputMode: "slider",
+      showPreview: true,
+      showLivePath: true,
+      challengeSummary: "Hockey Easy: open shooting lane",
+      challenges: ["Score 2 from the Blue Line", "Use power to control speed", "Use gravity/drop to line up the net"],
+      sliderRules: {
+        angle: { min: 0, max: 45, step: 1, value: 18 },
+        power: { min: 30, max: 100, step: 1, value: 68 },
+        gravity: { min: 0, max: 18, step: 0.1, value: 7.0 }
+      },
+      forgiveness: 20
+    },
+    medium: {
+      text: "Moving Goalie",
+      distanceMode: { type: "spots", spots: [460, 300], labels: ["Near Blue Line", "Center Ice"], makesPerSpot: 2 },
+      inputMode: "typed",
+      showPreview: true,
+      showLivePath: true,
+      challengeSummary: "Hockey Medium: fixed-shot challenge",
+      challenges: ["Score 2 from Far Blue Line", "Score 2 from Center Ice", "Use vertical/horizontal movement to line up the puck"],
+      sliderRules: {
+        angle: { min: 0, max: 45, step: 1, value: 16 },
+        power: { min: 35, max: 100, step: 1, value: 72 },
+        gravity: { min: 0, max: 18, step: 0.1, value: 7.0 }
+      },
+      forgiveness: 13
+    },
+    hard: {
+      text: "No Guide + Barrier",
+      distanceMode: { type: "spots", spots: [460, 300, 140], labels: ["Near Blue Line", "Center Ice", "Far Blue Line"], makesPerSpot: 2 },
+      inputMode: "typed",
+      showPreview: false,
+      showLivePath: false,
+      challengeSummary: "Hockey Hard: no guide with a blocker",
+      challenges: ["Score 2 from each line", "No trajectory guide", "Avoid the blocker and goalie"],
+      sliderRules: {
+        angle: { min: 0, max: 45, step: 1, value: 14 },
+        power: { min: 35, max: 100, step: 1, value: 75 },
+        gravity: { min: 0, max: 18, step: 0.1, value: 7.0 }
+      },
+      forgiveness: 8
+    }
+  }
+};
+
+function getActiveLevelConfig(level = game.level, sport = game.sport) {
+  const base = levels[level];
+  const sportCfg = sportLevelOverrides[sport]?.[level] || {};
+  return {
+    ...base,
+    ...sportCfg,
+    distanceMode: sportCfg.distanceMode || base.distanceMode,
+    sliderRules: {
+      ...base.sliderRules,
+      ...(sportCfg.sliderRules || {})
+    }
+  };
+}
+
+function getCurrentHighScore() {
+  return game.guestBest;
+}
+
+function saveCurrentHighScore(score) {
+  game.guestBest = Math.max(game.guestBest, score);
+}
+
+function showScreen(screen) {
+  nameScreen.classList.toggle("hidden", screen !== "name");
+  sportScreen.classList.toggle("hidden", screen !== "sport");
+  levelScreen.classList.toggle("hidden", screen !== "level");
+  gameScreen.classList.toggle("hidden", screen !== "game");
+}
+
+function syncSportTheme() {
+  document.body.dataset.sport = game.sport || "basketball";
+  document.body.dataset.level = game.level || "easy";
+}
+
+function hideShotNotice() {
+  shotNotice.classList.add("hidden");
+  nextChallengeBtn.classList.add("hidden");
+}
+
+function showShotNotice(title, message) {
+  shotNoticeTitle.textContent = title;
+  shotNoticeMessage.textContent = message;
+  shotNotice.classList.remove("hidden");
+}
+
+function hideShotReview() {
+  shotReview.classList.add("hidden");
+  shotGraphCanvas.removeEventListener("mousemove", handleGraphTooltip);
+}
+
+function calculateShotSummary() {
+  if (ball.path.length < 2) return null;
+
+  const physics = activeShotPhysics || getPhysicsFromControls();
+  const plotPoints = ball.path.map((pt) => ({
+    x: pt.x - ball.x0,
+    y: ball.y0 - pt.y
+  }));
+
+  let maxHeight = plotPoints[0].y;
+  let maxHeightIdx = 0;
+  let totalDistance = plotPoints[plotPoints.length - 1].x;
+  
+  for (let i = 1; i < plotPoints.length; i++) {
+    if (plotPoints[i].y > maxHeight) {
+      maxHeight = plotPoints[i].y;
+      maxHeightIdx = i;
+    }
+  }
+
+  const flightTime = ball.t;
+  const pixelsToMeters = 0.02; // 1 pixel = 0.02 meters (approx)
+  const maxHeightM = maxHeight * pixelsToMeters;
+  const totalDistanceM = totalDistance * pixelsToMeters;
+  
+  // Calculate initial velocity components
+  const initialVx = Math.cos(physics.angleRad) * physics.speed;
+  const initialVy = -Math.abs(Math.sin(physics.angleRad) * physics.speed);
+  const initialSpeed = physics.speed * LAUNCH_SPEED_SCALE;
+  
+  // Approximate slope at launch
+  const slopeAtLaunch = initialVy / initialVx;
+  
+  return {
+    maxHeight: maxHeightM,
+    maxHeightPixels: maxHeight,
+    totalDistance: totalDistanceM,
+    totalDistancePixels: totalDistance,
+    flightTime,
+    initialSpeed,
+    initialVx,
+    initialVy,
+    slopeAtLaunch,
+    angle: physics.angleDeg,
+    gravity: physics.gravity,
+    scored: ball.scored,
+    maxHeightIdx
+  };
+}
+
+function drawShotGraph() {
+  shotGraphCtx.clearRect(0, 0, shotGraphCanvas.width, shotGraphCanvas.height);
+  shotGraphCtx.fillStyle = "rgba(7, 23, 38, 0.9)";
+  shotGraphCtx.fillRect(0, 0, shotGraphCanvas.width, shotGraphCanvas.height);
+  
+  if (ball.path.length < 2) {
+    shotGraphMeta.textContent = "Take a shot to generate a trajectory graph.";
+    summaryText.textContent = "";
+    return;
+  }
+
+  const plotPoints = ball.path.map((pt) => ({
+    x: pt.x - ball.x0,
+    y: ball.y0 - pt.y
+  }));
+  const xMin = 0;
+  const xMax = Math.max(1, ...plotPoints.map((d) => d.x));
+  const yMin = Math.min(0, ...plotPoints.map((d) => d.y));
+  const yMax = Math.max(1, ...plotPoints.map((d) => d.y));
+
+  const pad = 48;
+  const w = shotGraphCanvas.width - pad * 2;
+  const h = shotGraphCanvas.height - pad * 1.5;
+  const tx = (x) => pad + ((x - xMin) / Math.max(1, xMax - xMin)) * w;
+  const ty = (y) => pad + h - ((y - yMin) / Math.max(1, yMax - yMin)) * h;
+
+  // Draw grid
+  shotGraphCtx.strokeStyle = "rgba(180, 220, 255, 0.24)";
+  shotGraphCtx.lineWidth = 1;
+  for (let i = 0; i <= 3; i += 1) {
+    const gx = pad + (w * i) / 3;
+    shotGraphCtx.beginPath();
+    shotGraphCtx.moveTo(gx, pad);
+    shotGraphCtx.lineTo(gx, pad + h);
+    shotGraphCtx.stroke();
+  }
+  for (let i = 0; i <= 2; i += 1) {
+    const gy = pad + (h * i) / 2;
+    shotGraphCtx.beginPath();
+    shotGraphCtx.moveTo(pad, gy);
+    shotGraphCtx.lineTo(pad + w, gy);
+    shotGraphCtx.stroke();
+  }
+
+  // Draw trajectory line
+  shotGraphCtx.strokeStyle = "rgba(125, 234, 203, 0.98)";
+  shotGraphCtx.lineWidth = 2.6;
+  shotGraphCtx.beginPath();
+  shotGraphCtx.moveTo(tx(plotPoints[0].x), ty(plotPoints[0].y));
+  for (let i = 1; i < plotPoints.length; i += 1) {
+    shotGraphCtx.lineTo(tx(plotPoints[i].x), ty(plotPoints[i].y));
+  }
+  shotGraphCtx.stroke();
+
+  // Find and mark key points
+  const summary = calculateShotSummary();
+  const markerIdx = new Set([
+    0,
+    Math.floor(plotPoints.length * 0.25),
+    Math.floor(plotPoints.length * 0.5),
+    Math.floor(plotPoints.length * 0.75),
+    plotPoints.length - 1
+  ]);
+  markerIdx.add(summary.maxHeightIdx);
+
+  // Draw and label key markers
+  shotGraphCtx.font = "600 11px Inter, sans-serif";
+  const markerLabels = {
+    0: "Launch",
+    [summary.maxHeightIdx]: "Max Height",
+    [plotPoints.length - 1]: ball.scored ? "Goal!" : "Landing"
+  };
+
+  for (const idx of markerIdx) {
+    const p = plotPoints[idx];
+    const px = tx(p.x);
+    const py = ty(p.y);
+    
+    // Choose color based on point importance
+    let color = "#9ee9ff";
+    if (idx === 0) color = "#67c1ff";
+    else if (idx === summary.maxHeightIdx) color = "#ffd07f";
+    else if (idx === plotPoints.length - 1) color = ball.scored ? "#8cffd5" : "#ff9ec7";
+
+    shotGraphCtx.fillStyle = color;
+    shotGraphCtx.strokeStyle = "rgba(7, 23, 38, 0.9)";
+    shotGraphCtx.lineWidth = 1.5;
+    shotGraphCtx.beginPath();
+    shotGraphCtx.arc(px, py, 4, 0, Math.PI * 2);
+    shotGraphCtx.fill();
+    shotGraphCtx.stroke();
+
+    // Add label if it's a key point
+    if (markerLabels[idx]) {
+      shotGraphCtx.fillStyle = color;
+      shotGraphCtx.font = "700 10px Inter, sans-serif";
+      const label = markerLabels[idx];
+      shotGraphCtx.fillText(label, px + 8, py - 8);
+      
+      // Add physics info below label
+      shotGraphCtx.font = "600 9px Inter, sans-serif";
+      shotGraphCtx.fillStyle = "rgba(234, 248, 255, 0.7)";
+      const distM = (p.x * 0.02).toFixed(1);
+      const heightM = (p.y * 0.02).toFixed(1);
+      shotGraphCtx.fillText(`${distM}m, ${heightM}m`, px + 8, py + 4);
+    }
+  }
+
+  // Draw axes labels
+  shotGraphCtx.fillStyle = "rgba(234, 248, 255, 0.94)";
+  shotGraphCtx.font = "700 12px Inter, sans-serif";
+  shotGraphCtx.fillText("Distance from launch (meters)", pad, shotGraphCanvas.height - 12);
+  shotGraphCtx.save();
+  shotGraphCtx.translate(18, pad + h);
+  shotGraphCtx.rotate(-Math.PI / 2);
+  shotGraphCtx.fillText("Height above launch (meters)", 0, 0);
+  shotGraphCtx.restore();
+
+  // Update metadata
+  const p = activeShotPhysics || getPhysicsFromControls();
+  shotGraphMeta.textContent =
+    `angle ${p.angleDeg.toFixed(0)}° · power ${p.power.toFixed(0)} · gravity ${p.gravity.toFixed(1)} · ${ball.scored ? "GOAL!" : "Missed"}`;
+
+  // Store trajectory data for tooltip
+  shotGraphCanvas.trajectoryData = {
+    plotPoints,
+    tx,
+    ty,
+    pad,
+    w,
+    h,
+    xMax,
+    yMax,
+    xMin,
+    yMin
+  };
+
+  // Generate and display summary
+  generateShotSummary(summary);
+}
+
+function generateShotSummary(summary) {
+  if (!summary) {
+    summaryText.textContent = "";
+    return;
+  }
+
+  const pixelsToMeters = 0.02;
+  const sport = game.sport === "soccer" ? "Soccer" : game.sport === "hockey" ? "Hockey" : "Basketball";
+  
+  // Calculate key physics insights
+  const initialSpeed = Math.sqrt(summary.initialVx ** 2 + summary.initialVy ** 2) * pixelsToMeters;
+  const peakHeight = summary.maxHeightPixels * pixelsToMeters;
+  const range = summary.totalDistancePixels * pixelsToMeters;
+  const timeToApex = Math.abs(summary.initialVy / (summary.gravity * GRAVITY_PIXEL_SCALE * pixelsToMeters));
+  const avgSlope = summary.initialVy / summary.initialVx;
+  
+  let resultText = `<strong>${sport} Shot Analysis:</strong> `;
+  
+  if (summary.scored) {
+    resultText += `✓ <strong style="color: #8cffd5">GOAL!</strong> `;
+  } else {
+    resultText += `✗ Missed. `;
+  }
+  
+  resultText += `Your projectile reached a <strong>max height of ${peakHeight.toFixed(2)}m</strong> and traveled <strong>${range.toFixed(2)}m</strong> `;
+  resultText += `in <strong>${summary.flightTime.toFixed(2)}s</strong>. `;
+  resultText += `Launched at <strong>${summary.angle.toFixed(0)}°</strong> with initial speed of <strong>${initialSpeed.toFixed(1)} m/s</strong>. `;
+  resultText += `The steepest slope occurred near launch (${avgSlope.toFixed(2)}). `;
+  resultText += `Gravity (${summary.gravity.toFixed(1)} m/s²) caused vertical velocity to decrease by `;
+  resultText += `<strong>${(summary.gravity * summary.flightTime).toFixed(1)} m/s</strong> over the flight.`;
+  
+  summaryText.innerHTML = resultText;
+}
+
+function showShotReview() {
+  drawShotGraph();
+  shotReview.classList.remove("hidden");
+  
+  // Add mouse tracking for tooltips
+  shotGraphCanvas.addEventListener("mousemove", handleGraphTooltip);
+  shotGraphCanvas.addEventListener("mouseleave", () => {
+    graphTooltip.classList.add("hidden");
+  });
+}
+
+function handleGraphTooltip(e) {
+  if (!shotGraphCanvas.trajectoryData) return;
+  
+  const rect = shotGraphCanvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  const data = shotGraphCanvas.trajectoryData;
+  const plotPoints = data.plotPoints;
+  const tx = data.tx;
+  const ty = data.ty;
+  const pad = data.pad;
+  
+  // Find nearest point on trajectory
+  let minDist = 10000;
+  let nearestIdx = -1;
+  
+  for (let i = 0; i < plotPoints.length; i++) {
+    const p = plotPoints[i];
+    const px = tx(p.x);
+    const py = ty(p.y);
+    const dist = Math.hypot(x - px, y - py);
+    if (dist < minDist && dist < 15) {
+      minDist = dist;
+      nearestIdx = i;
+    }
+  }
+  
+  if (nearestIdx === -1) {
+    graphTooltip.classList.add("hidden");
+    return;
+  }
+  
+  const p = plotPoints[nearestIdx];
+  const physics = activeShotPhysics || getPhysicsFromControls();
+  
+  // Calculate physics values at this point
+  const timeAtPoint = (nearestIdx / plotPoints.length) * ball.t;
+  const vx = Math.cos(physics.angleRad) * physics.speed * LAUNCH_SPEED_SCALE;
+  const vy = -Math.abs(Math.sin(physics.angleRad) * physics.speed * LAUNCH_SPEED_SCALE) + (physics.gravity * GRAVITY_PIXEL_SCALE * timeAtPoint);
+  const speed = Math.sqrt(vx ** 2 + vy ** 2) * 0.02;
+  const slope = vx !== 0 ? vy / vx : 0;
+  
+  let tooltipHTML = `<strong>Point ${nearestIdx + 1}</strong><br>`;
+  tooltipHTML += `Time: ${timeAtPoint.toFixed(2)}s<br>`;
+  tooltipHTML += `Position: (${(p.x * 0.02).toFixed(1)}m, ${(p.y * 0.02).toFixed(1)}m)<br>`;
+  tooltipHTML += `Speed: ${speed.toFixed(1)} m/s<br>`;
+  tooltipHTML += `Slope: ${slope.toFixed(2)}`;
+  
+  tooltipContent.innerHTML = tooltipHTML;
+  graphTooltip.classList.remove("hidden");
+  
+  // Position tooltip relative to canvas
+  const px = tx(p.x);
+  const py = ty(p.y);
+  
+  // Ensure tooltip doesn't go off-screen
+  let tooltipX = px + 10;
+  let tooltipY = py - 80;
+  
+  // Check if tooltip would go off right edge
+  if (tooltipX + 200 > shotGraphCanvas.width) {
+    tooltipX = px - 210;
+  }
+  
+  // Check if tooltip would go off top edge
+  if (tooltipY < 0) {
+    tooltipY = py + 20;
+  }
+  
+  graphTooltip.style.left = tooltipX + "px";
+  graphTooltip.style.top = tooltipY + "px";
+}
+
+function resetBall() {
+  ball.x = launcher.x + 38;
+  ball.y = launcher.y - 18;
+  ball.x0 = ball.x;
+  ball.y0 = ball.y;
+  ball.vx = 0;
+  ball.vy = 0;
+  ball.vx0 = 0;
+  ball.vy0 = 0;
+  ball.ax = 0;
+  ball.ay = 0;
+  ball.t = 0;
+  ball.afterGoalieTouched = false;
+  ball.afterGoalieTouchedTime = null;
+  ball.afterGoalieWaitingForWall = false;
+  ball.afterGoalieWallEndTime = null;
+  ball.path = [];
+  ball.flying = false;
+  ball.scored = false;
+  ball.floorBounces = 0;
+  ball.boardBounces = 0;
+  ball.hitGoalieFirst = false;
+  ball.endAfterTime = null;
+  activeShotPhysics = null;
+  game.maxHeight = ball.y;
+  game.shotResolved = false;
+}
+
+function updateStats() {
+  scoreStat.textContent = String(game.score);
+  shotsStat.textContent = String(game.shots);
+  streakStat.textContent = String(game.streak);
+  bestStat.textContent = String(game.best);
+}
+
+function getCurrentDistanceLines() {
+  if (game.sport === "soccer") return SOCCER_DISTANCE_LINES;
+  if (game.sport === "hockey") return HOCKEY_DISTANCE_LINES;
+  return DISTANCE_LINES;
+}
+
+function getBottomGuideStops() {
+  if (game.sport === "hockey") {
+    return [
+      { x: canvas.width * 0.25, label: "Blue Line" },
+      { x: canvas.width * 0.5, label: "Center" },
+      { x: canvas.width * 0.75, label: "Blue Line" }
+    ];
+  }
+
+  return getCurrentDistanceLines();
+}
+
+function nearestDistanceLabel(x) {
+  const lines = getBottomGuideStops();
+  let best = lines[0];
+  let bestDelta = Math.abs(x - best.x);
+  for (let i = 1; i < lines.length; i += 1) {
+    const delta = Math.abs(x - lines[i].x);
+    if (delta < bestDelta) {
+      best = lines[i];
+      bestDelta = delta;
+    }
+  }
+  const offset = Math.round(x - best.x);
+  const offsetText = offset === 0 ? "on line" : offset > 0 ? `+${offset}px right` : `${offset}px left`;
+  return `${best.label} (${offsetText})`;
+}
+
+function setLauncherX(x, reset = true) {
+  launcher.x = Math.max(LAUNCH_MIN_X, Math.min(LAUNCH_MAX_X, x));
+  distanceInput.value = String(Math.round(launcher.x));
+  distanceValue.textContent = nearestDistanceLabel(launcher.x);
+  if (reset && !ball.flying) {
+    resetBall();
+    updateReadout();
+  }
+}
+
+function setLauncherY(y, reset = true) {
+  const LAUNCH_MIN_Y = 150;
+  const LAUNCH_MAX_Y = 450;
+  launcher.y = Math.max(LAUNCH_MIN_Y, Math.min(LAUNCH_MAX_Y, y));
+  verticalInput.value = String(Math.round(launcher.y));
+  verticalValue.textContent = String(Math.round(launcher.y));
+  if (reset && !ball.flying) {
+    resetBall();
+    updateReadout();
+  }
+}
+
+function setCurrentSpotByX(x, reset = true) {
+  const cfg = getActiveLevelConfig();
+  if (cfg.distanceMode.type !== "spots") return;
+  let nextIndex = 0;
+  let bestDelta = Math.abs(x - cfg.distanceMode.spots[0]);
+  for (let i = 1; i < cfg.distanceMode.spots.length; i += 1) {
+    const delta = Math.abs(x - cfg.distanceMode.spots[i]);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      nextIndex = i;
+    }
+  }
+  if (nextIndex === game.currentSpotIndex && Math.abs(launcher.x - x) < 0.5) return;
+  game.currentSpotIndex = nextIndex;
+  setLauncherX(x, reset);
+  updateSpotInfo();
+}
+
+function updateSpotInfo() {
+  const cfg = getActiveLevelConfig();
+  if (cfg.distanceMode.type !== "spots") return;
+  const total = cfg.distanceMode.spots.length;
+  const label = cfg.distanceMode.labels[game.currentSpotIndex];
+  const required = cfg.distanceMode.makesPerSpot;
+  const current = game.spotMakes[game.currentSpotIndex] ?? 0;
+  const doneCount = game.spotMakes.reduce((sum, v) => sum + Math.min(v, required), 0);
+  const targetCount = total * required;
+  spotInfo.textContent = `${label}: ${current}/${required} · Total ${doneCount}/${targetCount}`;
+}
+
+function applyDistanceMode(cfg) {
+  const mode = cfg.distanceMode;
+  game.spotMakes = new Array(mode.spots.length).fill(0);
+  game.currentSpotIndex = 0;
+
+  distanceInput.min = String(LAUNCH_MIN_X);
+  distanceInput.max = String(LAUNCH_MAX_X);
+  distanceInput.step = "1";
+  distanceInput.disabled = false;
+  spotRow.classList.remove("hidden");
+  setLauncherX(mode.spots[game.currentSpotIndex], false);
+  updateSpotInfo();
+}
+
+function applySliderRule(input, rule) {
+  input.min = String(rule.min);
+  input.max = String(rule.max);
+  input.step = String(rule.step);
+  const currentValue = Number(input.value);
+  const base = Number.isFinite(currentValue) ? currentValue : rule.value;
+  const clamped = Math.min(rule.max, Math.max(rule.min, base));
+  const snapped = Math.round((clamped - rule.min) / rule.step) * rule.step + rule.min;
+  input.value = String(Number(snapped.toFixed(3)));
+}
+
+function updateLabels() {
+  angleValue.textContent = `${Number(angleInput.value).toFixed(0)}°`;
+  powerValue.textContent = Number(powerInput.value).toFixed(0);
+  gravityValue.textContent = Number(gravityInput.value).toFixed(1);
+  distanceValue.textContent = nearestDistanceLabel(launcher.x);
+}
+
+function setInputMode(cfg) {
+  const controls = [
+    [angleInput, cfg.sliderRules.angle],
+    [powerInput, cfg.sliderRules.power],
+    [gravityInput, cfg.sliderRules.gravity]
+  ];
+
+  // Easy = sliders. Medium/Hard = typed number boxes.
+  // Horizontal launch distance and vertical player height remain draggable sliders.
+  const typed = cfg.inputMode === "typed";
+  controls.forEach(([input, rule]) => {
+    input.type = typed ? "number" : "range";
+    input.min = String(rule.min);
+    input.max = String(rule.max);
+    input.step = String(rule.step);
+    input.value = String(rule.value);
+  });
+}
+
+function clampNumericInputs() {
+  const cfg = getActiveLevelConfig();
+  applySliderRule(angleInput, cfg.sliderRules.angle);
+  applySliderRule(powerInput, cfg.sliderRules.power);
+  applySliderRule(gravityInput, cfg.sliderRules.gravity);
+}
+
+function applyLevelRules() {
+  const cfg = getActiveLevelConfig();
+  setInputMode(cfg);
+  clampNumericInputs();
+
+  applyDistanceMode(cfg);
+
+  const previewRow = previewToggle.closest(".preview-row");
+  previewToggle.checked = cfg.showPreview;
+  previewToggle.disabled = !cfg.showPreview;
+  if (previewRow) previewRow.classList.toggle("hidden", !cfg.showPreview);
+
+  // Keep angle, power, and gravity visible on every level.
+  // Easy uses sliders. Medium and Hard use typed number boxes. Movement controls stay as sliders.
+  const angleRow = angleInput.closest(".control-row");
+  const powerRow = powerInput.closest(".control-row");
+  const gravityRow = gravityInput.closest(".control-row");
+
+  [angleRow, powerRow, gravityRow].forEach((row) => {
+    if (row) row.classList.remove("hidden");
+  });
+
+  // Always keep horizontal distance and vertical player movement available.
+  spotRow.classList.remove("hidden");
+  verticalRow.classList.remove("hidden");
+
+
+  setLauncherY(launcher.y, false);
+
+  lockInfo.textContent = cfg.text;
+  updateLabels();
+  updateReadout();
+}
+
+function updateChallengePanel() {
+  const cfg = getActiveLevelConfig();
+  challengeTitle.textContent = `${cfg.label}`;
+  challengeSummary.textContent = cfg.challengeSummary;
+  challengeList.innerHTML = cfg.challenges.map((item, index) => `${index + 1}. ${item}`).join("<br/>");
+}
+function emitConfetti(x, y, count = 36) {
+  const palette = ["#8cffd5", "#67c1ff", "#ffd07f", "#ff9ec7", "#d5b3ff"];
+  for (let i = 0; i < count; i += 1) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+    const speed = 80 + Math.random() * 180;
+    confettiPieces.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 40,
+      life: 0.9 + Math.random() * 0.7,
+      size: 2 + Math.random() * 3,
+      color: palette[Math.floor(Math.random() * palette.length)]
+    });
+  }
+}
+
+function updateAndDrawConfetti(dt = 1 / 60) {
+  if (confettiPieces.length === 0) return;
+  for (let i = confettiPieces.length - 1; i >= 0; i -= 1) {
+    const p = confettiPieces[i];
+    p.life -= dt;
+    if (p.life <= 0) {
+      confettiPieces.splice(i, 1);
+      continue;
+    }
+    p.vy += 220 * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function circleIntersectsRect(cx, cy, radius, rect) {
+  return (
+    cx + radius > rect.left &&
+    cx - radius < rect.right &&
+    cy + radius > rect.top &&
+    cy - radius < rect.bottom
+  );
+}
+
+function segmentIntersectsRect(x1, y1, x2, y2, rect) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  let t0 = 0;
+  let t1 = 1;
+  const checks = [
+    [-dx, x1 - rect.left],
+    [dx, rect.right - x1],
+    [-dy, y1 - rect.top],
+    [dy, rect.bottom - y1]
+  ];
+
+  for (const [p, q] of checks) {
+    if (p === 0) {
+      if (q < 0) return false;
+      continue;
+    }
+    const ratio = q / p;
+    if (p < 0) {
+      if (ratio > t1) return false;
+      if (ratio > t0) t0 = ratio;
+    } else {
+      if (ratio < t0) return false;
+      if (ratio < t1) t1 = ratio;
+    }
+  }
+
+  return t0 <= t1;
+}
+
+function getHockeyGoalRects() {
+  const inner = {
+    left: hockeyGoal.x - hockeyGoal.w / 2,
+    right: hockeyGoal.x + hockeyGoal.w / 2 + 12,
+    top: hockeyGoal.centerY - hockeyGoal.h / 2,
+    bottom: hockeyGoal.centerY + hockeyGoal.h / 2
+  };
+
+  const expanded = {
+    left: inner.left - ball.r,
+    right: inner.right + ball.r,
+    top: inner.top - ball.r,
+    bottom: inner.bottom + ball.r
+  };
+
+  return { inner, expanded };
+}
+
+function resolveHockeyShot(previousX, previousY) {
+  const rink = getHockeyRinkBounds();
+  const { expanded: goalRect } = getHockeyGoalRects();
+
+  const crossedGoal =
+    segmentIntersectsRect(previousX, previousY, ball.x, ball.y, goalRect) ||
+    circleIntersectsRect(ball.x, ball.y, ball.r, goalRect);
+
+  // Only count a goal if the puck has NOT already been saved by the goalie.
+  // This prevents a saved puck from bouncing behind the goalie and counting as a goal.
+  if (crossedGoal && !ball.hitGoalieFirst) {
+    return { scored: true };
+  }
+
+  // If a bounce sequence scheduled an ending, end the round after that short delay.
+  if (ball.endAfterTime !== null && ball.t >= ball.endAfterTime) {
+    return { ended: true, message: "Shot ended after bouncing." };
+  }
+
+  // Safety check: if somehow the puck leaves the rink by a lot, end it.
+  const margin = 32;
+  const outOfRink =
+    ball.x + ball.r < rink.left - margin ||
+    ball.x - ball.r > rink.right + margin ||
+    ball.y + ball.r < rink.top - margin ||
+    ball.y - ball.r > rink.bottom + margin;
+
+  if (outOfRink) {
+    return { ended: true, message: "Puck left the rink." };
+  }
+
+  // General timeout so a puck never runs forever.
+  if (ball.t > 8) {
+    return { ended: true, message: "Shot timed out." };
+  }
+
+  return { continue: true };
+}
+
+function appendCurrentBallPoint() {
+  const lastPoint = ball.path[ball.path.length - 1];
+  if (!lastPoint || lastPoint.x !== ball.x || lastPoint.y !== ball.y) {
+    ball.path.push({ x: ball.x, y: ball.y });
+  }
+  if (ball.path.length > 420) ball.path.shift();
+  game.maxHeight = Math.min(game.maxHeight, ball.y);
+}
+
+function finalizeSuccessfulShot(goalMessage, confettiX, confettiY) {
+  ball.scored = true;
+  appendCurrentBallPoint();
+
+  game.streak += 1;
+  const spotProgress = registerSpotMake();
+  if (game.score > game.best) {
+    game.best = game.score;
+    saveCurrentHighScore(game.best);
+  }
+
+  if (spotProgress.newlyCompleted && spotProgress.allDone) {
+    feedbackMessage.textContent = `${goalMessage} Challenge done.`;
+  } else if (spotProgress.newlyCompleted) {
+    feedbackMessage.textContent = `${goalMessage} ${spotProgress.current}/${spotProgress.required} here.`;
+  } else {
+    feedbackMessage.textContent = goalMessage;
+  }
+
+  updateStats();
+  updateReadout();
+  ball.flying = false;
+  game.shotResolved = true;
+
+  const nextLevel = spotProgress.allDone ? getNextLevel(game.level) : null;
+  if (nextLevel) {
+    nextChallengeBtn.textContent = `Try ${levels[nextLevel].label}`;
+    nextChallengeBtn.dataset.nextLevel = nextLevel;
+    nextChallengeBtn.classList.remove("hidden");
+  } else {
+    nextChallengeBtn.classList.add("hidden");
+    nextChallengeBtn.dataset.nextLevel = "";
+  }
+
+  if (confettiX != null && confettiY != null) emitConfetti(confettiX, confettiY);
+  showShotReview();
+  showShotNotice(
+    spotProgress.allDone ? "Level Complete!" : "Nice Shot!",
+    spotProgress.allDone
+      ? nextLevel
+        ? `Done. Try ${levels[nextLevel].label}?`
+        : "Done. You beat all levels."
+      : "Made it. Check graph, then retry."
+  );
+}
+
+function finalizeMissedShot(message) {
+  appendCurrentBallPoint();
+  game.streak = 0;
+  feedbackMessage.textContent = message;
+  updateStats();
+  updateReadout();
+  ball.flying = false;
+  game.shotResolved = true;
+  nextChallengeBtn.classList.add("hidden");
+  nextChallengeBtn.dataset.nextLevel = "";
+  showShotReview();
+  showShotNotice("Shot Ended", "Missed. Check graph and retry.");
+}
+
+function setLevel(level) {
+  game.level = level;
+  syncSportTheme();
+  levelOptions.forEach((btn) => btn.classList.toggle("selected", btn.dataset.level === level));
+  updateChallengePanel();
+}
+
+function getNextLevel(level) {
+  const idx = LEVEL_ORDER.indexOf(level);
+  if (idx === -1 || idx >= LEVEL_ORDER.length - 1) return null;
+  return LEVEL_ORDER[idx + 1];
+}
+
+function startSelectedLevel() {
+  syncSportTheme();
+  game.score = 0;
+  game.shots = 0;
+  game.streak = 0;
+  game.best = getCurrentHighScore();
+  game.shotResolved = false;
+
+  hudName.textContent = game.playerName;
+  hudLevel.textContent = getActiveLevelConfig().label;
+  if (game.sport === "soccer") {
+    hudTitle.textContent = "Physics Soccer Lab";
+  } else if (game.sport === "hockey") {
+    hudTitle.textContent = "Physics Hockey Lab";
+  } else {
+    hudTitle.textContent = "Physics Hoops Lab";
+  }
+  applyLevelRules();
+  updateStats();
+  resetBall();
+  hideShotNotice();
+  hideShotReview();
+  feedbackMessage.textContent = "Set values and shoot.";
+  showScreen("game");
+}
+
+function getPhysicsFromControls() {
+  const displayAngleDeg = Number(angleInput.value);
+  let angleDeg = displayAngleDeg;
+  let angleRad = (angleDeg * Math.PI) / 180;
+  const power = Number(powerInput.value);
+  const gravity = Number(gravityInput.value);
+
+  const speed = power * LAUNCH_SPEED_SCALE * (game.sport === "hockey" ? HOCKEY_SPEED_MULTIPLIER : 1);
+
+  let vx0;
+  let vy0;
+
+  if (game.sport === "hockey") {
+    // Hockey is a straight-ish shot toward the net.
+    // The player's height decides the basic line to the goal.
+    // Angle adds a small lift above that line.
+    // Power and gravity then decide whether the puck stays flat or drops before the net.
+    const startX = launcher.x + 38;
+    const startY = launcher.y - 18;
+    const targetX = hockeyGoal.x - 22;
+    const targetY = hockeyGoal.centerY;
+    const baseAngleRad = Math.atan2(targetY - startY, targetX - startX);
+
+    const cfg = getActiveLevelConfig();
+    const maxSliderAngle = cfg.sliderRules.angle.max || 45;
+    const clampedAngle = Math.max(0, Math.min(maxSliderAngle, displayAngleDeg));
+    const liftDeg = (clampedAngle / maxSliderAngle) * 12;
+
+    angleDeg = clampedAngle;
+    angleRad = baseAngleRad - (liftDeg * Math.PI) / 180;
+
+    vx0 = Math.cos(angleRad) * speed;
+    vy0 = Math.sin(angleRad) * speed;
+  } else {
+    vx0 = Math.cos(angleRad) * speed;
+    vy0 = -Math.abs(Math.sin(angleRad) * speed);
+  }
+
+  return { angleDeg, angleRad, power, gravity, speed, vx0, vy0 };
+}
+function computeAccelerations(vx, vy, physics) {
+  if (game.sport === "hockey") {
+    const dragCoef = 0.006;
+    const hockeyGravityScale = 14;
+    return {
+      ax: -vx * dragCoef,
+      ay: physics.gravity * hockeyGravityScale - vy * dragCoef
+    };
+  }
+
+  return {
+    ax: 0,
+    ay: physics.gravity * GRAVITY_PIXEL_SCALE
+  };
+}
+
+function physicsStep(state, physics, dt) {
+  const { ax, ay } = computeAccelerations(state.vx, state.vy, physics);
+  state.ax = ax;
+  state.ay = ay;
+  state.vx += ax * dt;
+  state.vy += ay * dt;
+  state.x += state.vx * dt;
+  state.y += state.vy * dt;
+  state.t += dt;
+}
+
+function resolveBackboardCollision() {
+  const boardTop = backboard.y;
+  const boardBottom = backboard.y + backboard.h;
+  const boardLeft = backboard.x;
+  const boardRight = backboard.x + backboard.w;
+  const verticallyOverlapping = ball.y + ball.r > boardTop && ball.y - ball.r < boardBottom;
+
+  if (!verticallyOverlapping) return false;
+
+  const hitFrontFace =
+    ball.vx > 0 &&
+    ball.x + ball.r >= boardLeft &&
+    ball.x - ball.r < boardLeft;
+  if (hitFrontFace) {
+    ball.x = boardLeft - ball.r - 0.2;
+    ball.vx = -Math.abs(ball.vx) * 0.44;
+    ball.vy *= 0.94;
+    return true;
+  }
+
+  const hitBackFace =
+    ball.vx < 0 &&
+    ball.x - ball.r <= boardRight &&
+    ball.x + ball.r > boardRight;
+  if (hitBackFace) {
+    ball.x = boardRight + ball.r + 0.2;
+    ball.vx = Math.abs(ball.vx) * 0.44;
+    ball.vy *= 0.94;
+    return true;
+  }
+
+  return false;
+}
+
+function resolveRimCollision() {
+  const rimNodes = [
+    { x: rim.left, y: rim.y },
+    { x: rim.right, y: rim.y }
+  ];
+
+  let hit = false;
+  for (const node of rimNodes) {
+    const dx = ball.x - node.x;
+    const dy = ball.y - node.y;
+    const distance = Math.hypot(dx, dy) || 0.0001;
+    const minDistance = ball.r + RIM_NODE_RADIUS;
+    if (distance >= minDistance) continue;
+
+    const nx = dx / distance;
+    const ny = dy / distance;
+    const overlap = minDistance - distance;
+    ball.x += nx * overlap;
+    ball.y += ny * overlap;
+
+    const vn = ball.vx * nx + ball.vy * ny;
+    if (vn < 0) {
+      const tx = -ny;
+      const ty = nx;
+      const vt = ball.vx * tx + ball.vy * ty;
+      const vnAfter = -vn * 0.68;
+      const vtAfter = vt * 0.96;
+      ball.vx = vnAfter * nx + vtAfter * tx;
+      ball.vy = vnAfter * ny + vtAfter * ty;
+    }
+    hit = true;
+  }
+
+  return hit;
+}
+
+function resolveFloorBounce() {
+  const floorTop = floorY - ball.r;
+  if (ball.y < floorTop) return false;
+  ball.y = floorTop;
+
+  if (ball.vy > 0) {
+    ball.floorBounces += 1;
+    ball.vy = -ball.vy * 0.33;
+    ball.vx *= 0.86;
+    if (Math.abs(ball.vy) < 48) ball.vy = 0;
+    return true;
+  }
+
+  if (Math.abs(ball.vy) <= 5) ball.vy = 0;
+  ball.vx *= 0.985;
+  return false;
+}
+
+function resolveSoccerWallCollision() {
+  // Soccer wall only active in hard difficulty
+  if (game.level !== "hard" || !soccerWall.active) return false;
+  const wallLeft = soccerWall.x;
+  const wallRight = soccerWall.x + soccerWall.w;
+  const wallTop = soccerWall.y;
+  const wallBottom = soccerWall.y + soccerWall.h;
+
+  const verticallyOverlapping = ball.y + ball.r > wallTop && ball.y - ball.r < wallBottom;
+  if (!verticallyOverlapping) return false;
+
+  const hitFront = ball.vx > 0 && ball.x + ball.r >= wallLeft && ball.x - ball.r < wallLeft;
+  if (hitFront) {
+    ball.x = wallLeft - ball.r - 0.2;
+    ball.vx = -Math.abs(ball.vx) * 0.5;
+    ball.vy *= 0.95;
+    return true;
+  }
+  return false;
+}
+
+function resolveSoccerGoalieCollision() {
+  const dx = ball.x - soccerGoalie.x;
+  const dy = ball.y - soccerGoalie.y;
+  const distance = Math.hypot(dx, dy) || 0.0001;
+  const minDistance = ball.r + soccerGoalie.r;
+  
+  if (distance >= minDistance) return false;
+  
+  const nx = dx / distance;
+  const ny = dy / distance;
+  const overlap = minDistance - distance;
+  ball.x += nx * overlap;
+  ball.y += ny * overlap;
+
+  const vn = ball.vx * nx + ball.vy * ny;
+  if (vn < 0) {
+    const tx = -ny;
+    const ty = nx;
+    const vt = ball.vx * tx + ball.vy * ty;
+    const vnAfter = -vn * 0.6;
+    const vtAfter = vt * 0.85;
+    ball.vx = vnAfter * nx + vtAfter * tx;
+    ball.vy = vnAfter * ny + vtAfter * ty;
+  }
+  return true;
+}
+
+function resolveSoccerGoalFrameCollision() {
+  const goalX = soccerGoal.x;
+  const goalY = soccerGoal.centerY;
+  const goalW = 100;
+  const goalH = 130;
+  
+  const leftPost = goalX - goalW / 2;
+  const rightPost = goalX + goalW / 2;
+  const topBar = goalY - goalH / 2;
+  const bottomLine = goalY + goalH / 2;
+  
+  let hitFrame = false;
+
+  // Left post collision
+  if (Math.abs(ball.x - leftPost) < ball.r && ball.y > topBar - ball.r && ball.y < bottomLine + ball.r) {
+    if (ball.vx < 0) {
+      ball.x = leftPost - ball.r;
+      ball.vx = -ball.vx * 0.4;
+      ball.vy *= 0.9;
+      hitFrame = true;
+    }
+  }
+
+  // Right post collision
+  if (Math.abs(ball.x - rightPost) < ball.r && ball.y > topBar - ball.r && ball.y < bottomLine + ball.r) {
+    if (ball.vx > 0) {
+      ball.x = rightPost + ball.r;
+      ball.vx = -ball.vx * 0.4;
+      ball.vy *= 0.9;
+      hitFrame = true;
+    }
+  }
+
+  // Top crossbar collision
+  if (Math.abs(ball.y - topBar) < ball.r && ball.x > leftPost - ball.r && ball.x < rightPost + ball.r) {
+    if (ball.vy < 0) {
+      ball.y = topBar - ball.r;
+      ball.vy = -ball.vy * 0.4;
+      ball.vx *= 0.9;
+      hitFrame = true;
+    }
+  }
+
+  // Bottom goal line collision (only if coming from inside goal area)
+  if (Math.abs(ball.y - bottomLine) < ball.r && ball.x > leftPost - ball.r && ball.x < rightPost + ball.r) {
+    if (ball.vy > 0) {
+      ball.y = bottomLine + ball.r;
+      ball.vy = -ball.vy * 0.4;
+      ball.vx *= 0.9;
+      hitFrame = true;
+    }
+  }
+
+  return hitFrame;
+}
+
+function updateSoccerGoalie(dt = 1 / 60) {
+  soccerGoalie.t += dt;
+  const period = 3.0;
+  const phase = (soccerGoalie.t % period) / period;
+  const sine = Math.sin(phase * Math.PI * 2);
+  soccerGoalie.y = soccerGoalie.minY + (soccerGoalie.maxY - soccerGoalie.minY) * (0.5 + 0.5 * sine);
+}
+
+function resolveHockeyWallCollision() {
+  // No hockey wall/blocker. Hockey should be a clear lane with the goalie as the challenge.
+  return false;
+}
+
+function getHockeyRinkBounds() {
+  return {
+    left: 60,
+    top: 70,
+    right: canvas.width - 60,
+    bottom: floorY - 40
+  };
+}
+
+function resolveHockeyRinkBounce() {
+  const rink = getHockeyRinkBounds();
+  let hit = false;
+
+  if (ball.vx < 0 && ball.x - ball.r <= rink.left) {
+    ball.x = rink.left + ball.r;
+    ball.vx = -ball.vx * 0.92;
+    ball.vy *= 0.99;
+    hit = true;
+  }
+
+  if (ball.vx > 0 && ball.x + ball.r >= rink.right) {
+    ball.x = rink.right - ball.r;
+    ball.vx = -ball.vx * 0.88;
+    ball.vy *= 0.99;
+    hit = true;
+  }
+
+  if (ball.vy < 0 && ball.y - ball.r <= rink.top) {
+    ball.y = rink.top + ball.r;
+    ball.vy = -ball.vy * 0.92;
+    ball.vx *= 0.99;
+    hit = true;
+  }
+
+  if (ball.vy > 0 && ball.y + ball.r >= rink.bottom) {
+    ball.y = rink.bottom - ball.r;
+    ball.vy = -ball.vy * 0.92;
+    ball.vx *= 0.99;
+    hit = true;
+  }
+
+  return hit;
+}
+
+function resolveHockeyGoalieCollision() {
+  const dx = ball.x - hockeyGoalie.x;
+  const dy = ball.y - hockeyGoalie.y;
+  const distance = Math.hypot(dx, dy) || 0.0001;
+  const minDistance = ball.r + hockeyGoalie.r;
+  
+  if (distance >= minDistance) return false;
+  
+  const nx = dx / distance;
+  const ny = dy / distance;
+  const overlap = minDistance - distance;
+  ball.x += nx * overlap;
+  ball.y += ny * overlap;
+
+  const vn = ball.vx * nx + ball.vy * ny;
+  if (vn < 0) {
+    const tx = -ny;
+    const ty = nx;
+    const vt = ball.vx * tx + ball.vy * ty;
+    const vnAfter = -vn * 0.6;
+    const vtAfter = vt * 0.85;
+    ball.vx = vnAfter * nx + vtAfter * tx;
+    ball.vy = vnAfter * ny + vtAfter * ty;
+  }
+  return true;
+}
+
+function updateHockeyGoalie(dt = 1 / 60) {
+  hockeyGoalie.t += dt;
+  const period = 4.2;
+  const phase = (hockeyGoalie.t % period) / period;
+  const sine = Math.sin(phase * Math.PI * 2);
+  hockeyGoalie.y = hockeyGoalie.minY + (hockeyGoalie.maxY - hockeyGoalie.minY) * (0.5 + 0.5 * sine);
+}
+
+function resolveHockeyGoalFrameCollision() {
+  const goalX = hockeyGoal.x;
+  const goalY = hockeyGoal.centerY;
+  const goalW = 50;
+  const goalH = 80;
+  
+  const leftPost = goalX - goalW / 2;
+  const rightPost = goalX + goalW / 2;
+  const topBar = goalY - goalH / 2;
+  const bottomLine = goalY + goalH / 2;
+  
+  let hitFrame = false;
+
+  // Left post collision
+  if (Math.abs(ball.x - leftPost) < ball.r && ball.y > topBar - ball.r && ball.y < bottomLine + ball.r) {
+    if (ball.vx < 0) {
+      ball.x = leftPost - ball.r;
+      ball.vx = -ball.vx * 0.4;
+      ball.vy *= 0.9;
+      hitFrame = true;
+    }
+  }
+
+  // Right post collision
+  if (Math.abs(ball.x - rightPost) < ball.r && ball.y > topBar - ball.r && ball.y < bottomLine + ball.r) {
+    if (ball.vx > 0) {
+      ball.x = rightPost + ball.r;
+      ball.vx = -ball.vx * 0.4;
+      ball.vy *= 0.9;
+      hitFrame = true;
+    }
+  }
+
+  // Top crossbar collision
+  if (Math.abs(ball.y - topBar) < ball.r && ball.x > leftPost - ball.r && ball.x < rightPost + ball.r) {
+    if (ball.vy < 0) {
+      ball.y = topBar - ball.r;
+      ball.vy = -ball.vy * 0.4;
+      ball.vx *= 0.9;
+      hitFrame = true;
+    }
+  }
+
+  // Bottom goal line collision
+  if (Math.abs(ball.y - bottomLine) < ball.r && ball.x > leftPost - ball.r && ball.x < rightPost + ball.r) {
+    if (ball.vy > 0) {
+      ball.y = bottomLine + ball.r;
+      ball.vy = -ball.vy * 0.4;
+      ball.vx *= 0.9;
+      hitFrame = true;
+    }
+  }
+
+  return hitFrame;
+}
+
+function updateReadout() {
+  const controlsPhysics = getPhysicsFromControls();
+  const physics = activeShotPhysics || controlsPhysics;
+  const t = ball.flying ? ball.t : 0;
+
+  const vx = ball.flying ? ball.vx : physics.vx0;
+  const vy = ball.flying ? ball.vy : physics.vy0;
+  const { ax, ay } = ball.flying
+    ? { ax: ball.ax, ay: ball.ay }
+    : computeAccelerations(physics.vx0, physics.vy0, physics);
+
+  speedReadout.textContent = `${physics.speed.toFixed(1)} px/s`;
+  vxReadout.textContent = `${vx.toFixed(1)} px/s`;
+  vyReadout.textContent = `${vy.toFixed(1)} px/s`;
+  sideVxReadout.textContent = `${controlsPhysics.vx0.toFixed(1)} px/s`;
+  sideVyReadout.textContent = `${controlsPhysics.vy0.toFixed(1)} px/s`;
+  axReadout.textContent = `${ax.toFixed(1)} px/s²`;
+  ayReadout.textContent = `${ay.toFixed(1)} px/s²`;
+  timeReadout.textContent = `${t.toFixed(2)} s`;
+
+  const x0 = ball.flying ? ball.x0 : launcher.x + 38;
+  const y0 = ball.flying ? ball.y0 : launcher.y - 18;
+  const displayAy = game.sport === "hockey" ? ay : physics.gravity * GRAVITY_PIXEL_SCALE;
+  const xIdeal = x0 + physics.vx0 * t;
+  const yIdeal = y0 + physics.vy0 * t + 0.5 * displayAy * t * t;
+  xEqReadout.textContent = `${x0.toFixed(1)} + (${physics.vx0.toFixed(1)})(${t.toFixed(2)}) = ${xIdeal.toFixed(1)}`;
+  yEqReadout.textContent =
+    `${y0.toFixed(1)} + (${physics.vy0.toFixed(1)})(${t.toFixed(2)}) + 0.5(${displayAy.toFixed(1)})(${(t * t).toFixed(2)}) = ${yIdeal.toFixed(1)}`;
+
+  coordNote.textContent = game.sport === "hockey"
+    ? "Hockey: angle adds a small lift, power changes how long gravity can pull the puck down, and gravity controls the drop."
+    : "More power = farther. More angle = higher arc. More gravity = quicker drop.";
+}
+
+function getMissFeedback(finalX) {
+  if (ball.scored) {
+    if (game.sport === "soccer") return "Goal! Excellent shot.";
+    if (game.sport === "hockey") return "Score! Nice shot!";
+    return "Swish. Great projectile setup.";
+  }
+  if (game.sport === "soccer") {
+    if (game.maxHeight > (floorY - 200)) return "Shot too low. Increase angle or launch speed.";
+    if (finalX > (soccerGoal.x + 50)) return "Overshot the goal. Reduce power or adjust angle.";
+    if (finalX < (soccerGoal.x - 50)) return "Missed left. Adjust angle and power.";
+    return "Close. Check your trajectory and try again.";
+  } else if (game.sport === "hockey") {
+    if (game.maxHeight > (floorY - 200)) return "Shot too low. Increase angle or launch speed.";
+    if (finalX > (hockeyGoal.x + 40)) return "Overshot the goal. Reduce power or adjust angle.";
+    if (finalX < (hockeyGoal.x - 40)) return "Missed left. Adjust angle and power.";
+    return "Close. Check your trajectory and try again.";
+  } else {
+    if (game.maxHeight > rim.y + 24) return "Arc stayed too low. Increase angle or launch speed.";
+    if (finalX > rim.right + 30) return "Overshot. Reduce power or adjust angle.";
+    return "Close. Adjust angle and compare vx/vy before shooting again.";
+  }
+}
+
+function registerSpotMake() {
+  const cfg = getActiveLevelConfig();
+  const required = cfg.distanceMode.makesPerSpot;
+  const current = game.spotMakes[game.currentSpotIndex] ?? 0;
+  const next = Math.min(required, current + 1);
+  game.spotMakes[game.currentSpotIndex] = next;
+
+  const completedBefore = current >= required;
+  const completedNow = next >= required;
+  const totalNeeded = cfg.distanceMode.spots.length * required;
+  const totalMade = game.spotMakes.reduce((sum, v) => sum + Math.min(v, required), 0);
+  updateSpotInfo();
+  return {
+    newlyCompleted: !completedBefore && completedNow,
+    allDone: totalMade >= totalNeeded,
+    current: next,
+    required
+  };
+}
+
+function shoot() {
+  if (ball.flying || game.shotResolved) return;
+
+  // Clear all previous shot visuals/data before launching a new shot.
+  // This prevents old trajectory paths from stacking/spamming on hard shots or retries.
+  ball.path = [];
+  confettiPieces.length = 0;
+  hideShotReview();
+  hideShotNotice();
+
+  clampNumericInputs();
+
+  const physics = getPhysicsFromControls();
+  activeShotPhysics = { ...physics };
+
+  ball.x0 = ball.x;
+  ball.y0 = ball.y;
+  ball.vx0 = physics.vx0;
+  ball.vy0 = physics.vy0;
+  ball.vx = physics.vx0;
+  ball.vy = physics.vy0;
+  ball.t = 0;
+  ball.path = [{ x: ball.x, y: ball.y }];
+  ball.flying = true;
+  ball.scored = false;
+  game.shotResolved = false;
+
+  game.shots += 1;
+  game.maxHeight = ball.y;
+  updateStats();
+  feedbackMessage.textContent = "Shot launched.";
+
+  let previousY = ball.y;
+  let previousX = ball.x;
+
+  function animate() {
+    if (!ball.flying || !activeShotPhysics) return;
+    const dt = 1 / 60;
+    physicsStep(ball, activeShotPhysics, dt);
+    
+    // Early scoring check (before collision responses) to avoid bounces inside goal
+    let earlyScored = false;
+    if (game.sport === "basketball") {
+      const crossedPlane = previousY < rim.y && ball.y >= rim.y && ball.vy > 0;
+      let crossedRim = false;
+      if (crossedPlane) {
+        const dy = ball.y - previousY;
+        const alpha = Math.abs(dy) < 0.0001 ? 1 : (rim.y - previousY) / dy;
+        const xAtPlane = previousX + (ball.x - previousX) * Math.max(0, Math.min(1, alpha));
+        const hoopClearance = ball.r + 1;
+        crossedRim = xAtPlane > rim.left + hoopClearance && xAtPlane < rim.right - hoopClearance;
+      }
+      if (crossedRim && !ball.scored) {
+        earlyScored = true;
+        ball.scored = true;
+        emitConfetti((rim.left + rim.right) / 2, rim.y - 10);
+        game.score += 2;
+      }
+    } else if (game.sport === "soccer") {
+      const goalLeft = soccerGoal.x;
+      const goalTop = soccerGoal.centerY - soccerGoal.h / 2;
+      const goalBottom = soccerGoal.centerY + soccerGoal.h / 2;
+      if (ball.x >= goalLeft && ball.x <= goalLeft + soccerGoal.w && ball.y > goalTop && ball.y < goalBottom && !ball.scored) {
+        earlyScored = true;
+        ball.scored = true;
+        emitConfetti(soccerGoal.x - 10, soccerGoal.centerY);
+        game.score += 1;
+      }
+    }
+
+    if (earlyScored) {
+      game.streak += 1;
+      const spotProgress = registerSpotMake();
+      if (game.score > game.best) {
+        game.best = game.score;
+        saveCurrentHighScore(game.best);
+      }
+      const goalMsg = game.sport === "soccer" ? "Goal!" : "Bucket!";
+      if (spotProgress.newlyCompleted && spotProgress.allDone) {
+        feedbackMessage.textContent = `${goalMsg} Challenge done.`;
+      } else if (spotProgress.newlyCompleted) {
+        feedbackMessage.textContent = `${goalMsg} ${spotProgress.current}/${spotProgress.required} here.`;
+      } else {
+        feedbackMessage.textContent = goalMsg;
+      }
+      updateStats();
+      ball.flying = false;
+      game.shotResolved = true;
+      const nextLevel = spotProgress.allDone ? getNextLevel(game.level) : null;
+      if (nextLevel) {
+        nextChallengeBtn.textContent = `Try ${levels[nextLevel].label}`;
+        nextChallengeBtn.dataset.nextLevel = nextLevel;
+        nextChallengeBtn.classList.remove("hidden");
+      } else {
+        nextChallengeBtn.classList.add("hidden");
+        nextChallengeBtn.dataset.nextLevel = "";
+      }
+      showShotReview();
+      showShotNotice(
+        spotProgress.allDone ? "Level Complete!" : "Nice Shot!",
+        spotProgress.allDone
+          ? nextLevel
+            ? `Done. Try ${levels[nextLevel].label}?`
+            : "Done. You beat all levels."
+          : "Made it. Check graph, then retry."
+      );
+      return;
+    }
+
+    if (game.sport === "hockey") {
+      updateHockeyGoalie(dt);
+
+      const hitGoalie = resolveHockeyGoalieCollision();
+      const hitWall = resolveHockeyRinkBounce();
+      const hitFrame = resolveHockeyGoalFrameCollision();
+
+      if (hitGoalie && !ball.hitGoalieFirst) {
+        ball.hitGoalieFirst = true;
+        ball.afterGoalieTouched = true;
+        ball.afterGoalieTouchedTime = ball.t;
+        feedbackMessage.textContent = "Goalie save — puck bounced off!";
+      }
+
+      if (hitWall) {
+        ball.boardBounces = (ball.boardBounces || 0) + 1;
+
+        if (ball.hitGoalieFirst) {
+          feedbackMessage.textContent = `Goalie save, then board bounce ${ball.boardBounces}/3.`;
+
+          // After the goalie save, let the puck bounce around 2-3 times, then end the round.
+          if (ball.boardBounces >= 3) {
+            ball.endAfterTime = ball.t + 0.25;
+          } else if (ball.endAfterTime === null && ball.boardBounces >= 1) {
+            // Backup timer so it still ends even if it only manages 1-2 wall hits.
+            ball.endAfterTime = ball.t + 2.5;
+          }
+        } else {
+          // If it only hits the boards/wall, let it bounce briefly, then end.
+          feedbackMessage.textContent = "Board bounce.";
+          if (ball.endAfterTime === null) {
+            ball.endAfterTime = ball.t + 0.75;
+          }
+        }
+      }
+
+      if (hitFrame) {
+        feedbackMessage.textContent = "Post hit.";
+        if (ball.endAfterTime === null) {
+          ball.endAfterTime = ball.t + 0.8;
+        }
+      }
+
+      const hockeyOutcome = resolveHockeyShot(previousX, previousY);
+      if (hockeyOutcome.scored) {
+        game.score += 1;
+        finalizeSuccessfulShot("Goal!", hockeyGoal.x - 10, hockeyGoal.centerY);
+        return;
+      }
+
+      if (hockeyOutcome.ended) {
+        finalizeMissedShot(hockeyOutcome.message);
+        return;
+      }
+
+      appendCurrentBallPoint();
+      updateReadout();
+
+      const speedPx = Math.hypot(ball.vx, ball.vy);
+      const speedMs = speedPx * PIXELS_TO_METERS;
+      const speedKmh = speedMs * 3.6;
+      if (speedKmh < 1) {
+        finalizeMissedShot("Shot stopped (low speed).");
+        return;
+      }
+
+      previousY = ball.y;
+      previousX = ball.x;
+      requestAnimationFrame(animate);
+      return;
+    }
+
+    let hitObstacle = false;
+    if (game.sport === "soccer") {
+      updateSoccerGoalie(dt);
+      const hitWall = resolveSoccerWallCollision();
+      const hitGoalie = resolveSoccerGoalieCollision();
+      const hitFrame = resolveSoccerGoalFrameCollision();
+      const hitFloor = resolveFloorBounce();
+      hitObstacle = hitWall || hitGoalie || hitFrame || hitFloor;
+      if (hitObstacle && !ball.scored) {
+        feedbackMessage.textContent = hitWall ? "Wall blocked." : hitGoalie ? "Goalie saved!" : hitFrame ? "Post hit." : "Ground bounce.";
+      }
+    } else if (game.sport === "hockey") {
+      updateHockeyGoalie(dt);
+      const hitWall = resolveHockeyRinkBounce();
+      const hitObstacleWall = resolveHockeyWallCollision();
+      const hitGoalie = resolveHockeyGoalieCollision();
+      if (hitGoalie) {
+        // mark that the goalie touched the puck; we'll wait for the next wall hit
+        if (!ball.afterGoalieTouched) {
+          ball.afterGoalieTouched = true;
+          ball.afterGoalieTouchedTime = ball.t;
+          ball.afterGoalieWaitingForWall = false;
+          ball.afterGoalieWallEndTime = null;
+        }
+      }
+      const hitFrame = resolveHockeyGoalFrameCollision();
+      const hitFloor = resolveFloorBounce();
+      hitObstacle = hitWall || hitObstacleWall || hitGoalie || hitFrame || hitFloor;
+      if (hitObstacle && !ball.scored) {
+        feedbackMessage.textContent = hitWall ? "Board bounce." : hitObstacleWall ? "Wall blocked." : hitGoalie ? "Goalie saved!" : hitFrame ? "Post hit." : "Ground bounce.";
+      }
+
+      // If puck previously touched goalie, and now it hits the rink wall, start the post-wall timer
+      if (hitWall && ball.afterGoalieTouched && !ball.afterGoalieWaitingForWall) {
+        ball.afterGoalieWaitingForWall = true;
+        // allow 2.5 seconds of bouncing after wall hit
+        ball.afterGoalieWallEndTime = ball.t + 2.5;
+      }
+    } else {
+      const hitBackboard = resolveBackboardCollision();
+      const hitRim = resolveRimCollision();
+      const hitFloor = resolveFloorBounce();
+      hitObstacle = hitBackboard || hitRim || hitFloor;
+      if (hitObstacle && !ball.scored) {
+        feedbackMessage.textContent = hitBackboard || hitRim ? "Rim contact." : "Floor bounce.";
+      }
+    }
+    
+    ball.path.push({ x: ball.x, y: ball.y });
+    if (ball.path.length > 420) ball.path.shift();
+    game.maxHeight = Math.min(game.maxHeight, ball.y);
+    updateReadout();
+
+    // If projectile (or puck) slows to less than 1 km/h, stop and show graph
+    const speedPx = Math.hypot(ball.vx, ball.vy);
+    const speedMs = speedPx * PIXELS_TO_METERS;
+    const speedKmh = speedMs * 3.6;
+    if (speedKmh < 1 && !ball.scored) {
+      ball.flying = false;
+      game.shotResolved = true;
+      game.streak = 0;
+      feedbackMessage.textContent = "Shot stopped (low speed).";
+      updateStats();
+      showShotReview();
+      showShotNotice("Shot Ended", "Stopped due to low speed.");
+      return;
+    }
+
+    let scoredThisFrame = false;
+    if (game.sport === "basketball") {
+      const crossedPlane = previousY < rim.y && ball.y >= rim.y && ball.vy > 0;
+      let crossedRim = false;
+      if (crossedPlane) {
+        const dy = ball.y - previousY;
+        const alpha = Math.abs(dy) < 0.0001 ? 1 : (rim.y - previousY) / dy;
+        const xAtPlane = previousX + (ball.x - previousX) * Math.max(0, Math.min(1, alpha));
+        const hoopClearance = ball.r + 1;
+        crossedRim = xAtPlane > rim.left + hoopClearance && xAtPlane < rim.right - hoopClearance;
+      }
+      if (crossedRim && !ball.scored) {
+        scoredThisFrame = true;
+        ball.scored = true;
+        emitConfetti((rim.left + rim.right) / 2, rim.y - 10);
+        game.score += 2;
+      }
+    } else if (game.sport === "soccer") {
+      const goalLeft = soccerGoal.x;
+      const goalRight = soccerGoal.x + soccerGoal.w;
+      const goalTop = soccerGoal.centerY - soccerGoal.h / 2;
+      const goalBottom = soccerGoal.centerY + soccerGoal.h / 2;
+      const crossedGoalLine = previousX < goalLeft && ball.x >= goalLeft && ball.vx > 0;
+      let inGoal = false;
+      if (crossedGoalLine) {
+        const yAtGoal = previousY + (ball.y - previousY) * ((goalLeft - previousX) / (ball.x - previousX + 0.0001));
+        inGoal = yAtGoal > goalTop && yAtGoal < goalBottom && Math.abs(ball.y - yAtGoal) < 20;
+      }
+      if (inGoal && !ball.scored) {
+        scoredThisFrame = true;
+        ball.scored = true;
+        emitConfetti(soccerGoal.x - 10, soccerGoal.centerY);
+        game.score += 1;
+      }
+    } else if (game.sport === "hockey") {
+      const goalLeft = hockeyGoal.x;
+      const goalRight = hockeyGoal.x + hockeyGoal.w;
+      const goalTop = hockeyGoal.centerY - hockeyGoal.h / 2;
+      const goalBottom = hockeyGoal.centerY + hockeyGoal.h / 2;
+      const crossedGoalLine = previousX < goalLeft && ball.x >= goalLeft && ball.vx > 0;
+      let inGoal = false;
+      if (crossedGoalLine) {
+        const yAtGoal = previousY + (ball.y - previousY) * ((goalLeft - previousX) / (ball.x - previousX + 0.0001));
+        inGoal = yAtGoal > goalTop && yAtGoal < goalBottom && Math.abs(ball.y - yAtGoal) < 18;
+      }
+      if (inGoal && !ball.scored) {
+        scoredThisFrame = true;
+        ball.scored = true;
+        emitConfetti(hockeyGoal.x - 10, hockeyGoal.centerY);
+        game.score += 1;
+      }
+    }
+
+    if (scoredThisFrame) {
+      game.streak += 1;
+      const spotProgress = registerSpotMake();
+      if (game.score > game.best) {
+        game.best = game.score;
+        saveCurrentHighScore(game.best);
+      }
+      const goalMsg = game.sport === "soccer" ? "Goal!" : "Bucket!";
+      if (spotProgress.newlyCompleted && spotProgress.allDone) {
+        feedbackMessage.textContent = `${goalMsg} Challenge done.`;
+      } else if (spotProgress.newlyCompleted) {
+        feedbackMessage.textContent = `${goalMsg} ${spotProgress.current}/${spotProgress.required} here.`;
+      } else {
+        feedbackMessage.textContent = goalMsg;
+      }
+      updateStats();
+      ball.flying = false;
+      game.shotResolved = true;
+      const nextLevel = spotProgress.allDone ? getNextLevel(game.level) : null;
+      if (nextLevel) {
+        nextChallengeBtn.textContent = `Try ${levels[nextLevel].label}`;
+        nextChallengeBtn.dataset.nextLevel = nextLevel;
+        nextChallengeBtn.classList.remove("hidden");
+      } else {
+        nextChallengeBtn.classList.add("hidden");
+        nextChallengeBtn.dataset.nextLevel = "";
+      }
+      showShotReview();
+      showShotNotice(
+        spotProgress.allDone ? "Level Complete!" : "Nice Shot!",
+        spotProgress.allDone
+          ? nextLevel
+            ? `Done. Try ${levels[nextLevel].label}?`
+            : "Done. You beat all levels."
+          : "Made it. Check graph, then retry."
+      );
+      return;
+    }
+
+    previousY = ball.y;
+    previousX = ball.x;
+
+    const settledOnFloor =
+      ball.y >= floorY - ball.r - 0.1 &&
+      Math.abs(ball.vy) < 2 &&
+      Math.abs(ball.vx) < 24;
+    const out = ball.x > canvas.width + 80 || ball.x < -80 || settledOnFloor;
+
+    if (out) {
+      if (!ball.scored) {
+        game.streak = 0;
+        feedbackMessage.textContent = getMissFeedback(ball.x);
+        updateStats();
+      }
+      ball.flying = false;
+      game.shotResolved = true;
+      nextChallengeBtn.classList.add("hidden");
+      nextChallengeBtn.dataset.nextLevel = "";
+      showShotReview();
+      showShotNotice("Shot Ended", "Missed. Check graph and retry.");
+      return;
+    }
+
+    requestAnimationFrame(animate);
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function drawCourt() {
+  const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  if (game.sport === "soccer") {
+    bg.addColorStop(0, "#1a4d2e");
+    bg.addColorStop(1, "#0d2818");
+  } else if (game.sport === "hockey") {
+    bg.addColorStop(0, "#e8f0f7");
+    bg.addColorStop(1, "#c0dff0");
+  } else {
+    bg.addColorStop(0, "#102237");
+    bg.addColorStop(1, "#0d1a2a");
+  }
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "rgba(68, 147, 255, 0.07)";
+  for (let i = 0; i < canvas.width; i += 56) ctx.fillRect(i, 0, 1, canvas.height);
+  for (let j = 0; j < canvas.height; j += 56) ctx.fillRect(0, j, canvas.width, 1);
+
+  if (game.sport === "soccer") {
+    // Grass field background - more vibrant
+    const grassGradient = ctx.createLinearGradient(0, 0, 0, floorY);
+    grassGradient.addColorStop(0, "#4a9d5a");
+    grassGradient.addColorStop(0.5, "#3d8a4a");
+    grassGradient.addColorStop(1, "#2d6d39");
+    ctx.fillStyle = grassGradient;
+    ctx.fillRect(0, 0, canvas.width, floorY);
+
+    // Grass texture effect - more detailed
+    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+    for (let i = 0; i < 120; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * floorY;
+      const size = Math.random() * 1.5 + 0.5;
+      ctx.fillRect(x, y, size, size);
+    }
+
+    // Highlight grass areas
+    ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+    for (let i = 0; i < 40; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * floorY;
+      ctx.fillRect(x, y, Math.random() * 3, Math.random() * 3);
+    }
+
+    // Field boundary
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(10, 30, canvas.width - 20, floorY - 50);
+
+    // Field markings - white lines
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.lineWidth = 2;
+    
+    // Center line (full height)
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2, 30);
+    ctx.lineTo(canvas.width / 2, floorY - 20);
+    ctx.stroke();
+
+    // Distance lines - solid and color coded
+    ctx.lineWidth = 3;
+    SOCCER_DISTANCE_LINES.forEach((line) => {
+      ctx.strokeStyle = line.color;
+      ctx.beginPath();
+      ctx.moveTo(line.x, 30);
+      ctx.lineTo(line.x, floorY - 20);
+      ctx.stroke();
+    });
+
+    // Wall - show in hard mode only
+    if (game.level === "hard") {
+      ctx.fillStyle = "rgba(120, 120, 120, 0.6)";
+      ctx.fillRect(soccerWall.x, soccerWall.y, soccerWall.w, soccerWall.h);
+      ctx.strokeStyle = "rgba(80, 80, 80, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(soccerWall.x, soccerWall.y, soccerWall.w, soccerWall.h);
+      
+      // Wall texture
+      ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+      for (let i = 0; i < 20; i++) {
+        const wx = soccerWall.x + Math.random() * soccerWall.w;
+        const wy = soccerWall.y + Math.random() * soccerWall.h;
+        ctx.fillRect(wx, wy, 2, 2);
+      }
+    }
+
+     // Draw soccer goal frame
+    const goalX = soccerGoal.x;
+    const goalY = soccerGoal.centerY;
+    const goalW = 108;
+    const goalH = 136;
+
+    // Goal posts (vertical lines - white)
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(goalX - goalW / 2, goalY - goalH / 2);
+    ctx.lineTo(goalX - goalW / 2, goalY + goalH / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(goalX + goalW / 2, goalY - goalH / 2);
+    ctx.lineTo(goalX + goalW / 2, goalY + goalH / 2);
+    ctx.stroke();
+
+    // Cross bar (top)
+    ctx.beginPath();
+    ctx.moveTo(goalX - goalW / 2, goalY - goalH / 2);
+    ctx.lineTo(goalX + goalW / 2, goalY - goalH / 2);
+    ctx.stroke();
+
+    // Goal line (bottom)
+    ctx.beginPath();
+    ctx.moveTo(goalX - goalW / 2, goalY + goalH / 2);
+    ctx.lineTo(goalX + goalW / 2, goalY + goalH / 2);
+    ctx.stroke();
+
+    // Real soccer net - hanging effect with depth
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.lineWidth = 1.2;
+    
+    // Vertical net lines (hanging from crossbar)
+    for (let i = 0; i <= 8; i++) {
+      const xStart = goalX - goalW / 2 + (i * goalW) / 8;
+      const xEnd = goalX - goalW / 2 + (i * goalW) / 8 + 15; // Hang forward
+      ctx.beginPath();
+      ctx.moveTo(xStart, goalY - goalH / 2);
+      ctx.quadraticCurveTo((xStart + xEnd) / 2, goalY - goalH / 4, xEnd, goalY + goalH / 2 + 20);
+      ctx.stroke();
+    }
+    
+    // Horizontal net lines (curved - net sag)
+    for (let j = 0; j <= 6; j++) {
+      const yStart = goalY - goalH / 2 + (j * (goalH + 20)) / 6;
+      const curveAmount = (j / 6) * 12; // More sag at bottom
+      
+      ctx.beginPath();
+      ctx.moveTo(goalX - goalW / 2, yStart);
+      const midPoint = goalX + (15 - curveAmount);
+      const endX = goalX - goalW / 2 + 15;
+      
+      for (let k = 0; k <= 8; k++) {
+        const t = k / 8;
+        const x = goalX - goalW / 2 + t * goalW;
+        const xDraw = x + (Math.sin(t * Math.PI) * (15 - curveAmount));
+        if (k === 0) ctx.moveTo(x, yStart);
+        else ctx.lineTo(xDraw, yStart + (j / 6) * 15);
+      }
+      ctx.stroke();
+    }
+
+    // Goalkeeper figure - use sprite when available (soccer-only)
+    const goalieX = soccerGoalie.x;
+    const goalieY = soccerGoalie.y;
+
+    // Prefer the girl goalie sprite if provided, otherwise use soccer sprite, otherwise fallback vector
+    if (girlGoalieSpriteLoaded) {
+      const gw = girlGoalieSprite.width || 100;
+      const gh = girlGoalieSprite.height || 100;
+      const scale = 0.07;
+      const drawW = gw * scale;
+      const drawH = gh * scale;
+
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.translate(goalieX, goalieY);
+      ctx.drawImage(girlGoalieSprite, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+    } else if (soccerSpriteLoaded) {
+      const gw = soccerSprite.width || 100;
+      const gh = soccerSprite.height || 100;
+      const scale = 0.07; // smaller goalie as requested
+      const drawW = gw * scale;
+      const drawH = gh * scale;
+
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.translate(goalieX, goalieY);
+      ctx.drawImage(soccerSprite, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+    } else {
+      // Body
+      ctx.fillStyle = "#ff6b5b";
+      ctx.beginPath();
+      ctx.arc(goalieX, goalieY, 11, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Head
+      ctx.fillStyle = "#ffdbac";
+      ctx.beginPath();
+      ctx.arc(goalieX, goalieY - 16, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Arms raised (ready to catch)
+      ctx.strokeStyle = "#ffdbac";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(goalieX - 11, goalieY - 2);
+      ctx.lineTo(goalieX - 22, goalieY - 12);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(goalieX + 11, goalieY - 2);
+      ctx.lineTo(goalieX + 22, goalieY - 12);
+      ctx.stroke();
+
+      // Hands
+      ctx.fillStyle = "#ffdbac";
+      ctx.beginPath();
+      ctx.arc(goalieX - 22, goalieY - 12, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(goalieX + 22, goalieY - 12, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Legs
+    ctx.beginPath();
+    ctx.moveTo(goalieX - 6, goalieY + 11);
+    ctx.lineTo(goalieX - 6, goalieY + 22);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(goalieX + 6, goalieY + 11);
+    ctx.lineTo(goalieX + 6, goalieY + 22);
+    ctx.stroke();
+
+    // Goalkeeper outline
+    ctx.strokeStyle = "rgba(50, 50, 50, 0.7)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(goalieX, goalieY, 11, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (game.sport === "hockey") {
+    // Ice rink - light blue gradient
+    const iceGradient = ctx.createLinearGradient(0, 0, 0, floorY);
+    iceGradient.addColorStop(0, "#d4e9f7");
+    iceGradient.addColorStop(1, "#a8d8f0");
+    ctx.fillStyle = iceGradient;
+    ctx.fillRect(0, 0, canvas.width, floorY);
+
+    const rink = getHockeyRinkBounds();
+
+    // Air-hockey style boards around the playable rink
+    ctx.fillStyle = "rgba(248, 250, 255, 0.95)";
+    ctx.shadowColor = "rgba(27, 53, 88, 0.16)";
+    ctx.shadowBlur = 10;
+    ctx.fillRect(rink.left - 12, rink.top, 12, rink.bottom - rink.top);
+    ctx.fillRect(rink.left, rink.top - 12, rink.right - rink.left, 12);
+    ctx.fillRect(rink.left, rink.bottom, rink.right - rink.left, 12);
+    ctx.shadowBlur = 0;
+
+    ctx.strokeStyle = "rgba(47, 95, 179, 0.35)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(rink.left, rink.top, rink.right - rink.left, rink.bottom - rink.top);
+
+    const iceSheen = ctx.createLinearGradient(rink.left, rink.top, rink.right, rink.bottom);
+    iceSheen.addColorStop(0, "rgba(255, 255, 255, 0.22)");
+    iceSheen.addColorStop(0.5, "rgba(255, 255, 255, 0.08)");
+    iceSheen.addColorStop(1, "rgba(255, 255, 255, 0.18)");
+    ctx.fillStyle = iceSheen;
+    ctx.fillRect(rink.left, rink.top, rink.right - rink.left, rink.bottom - rink.top);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(rink.left + 10, rink.top + 12);
+    ctx.lineTo(rink.right - 10, rink.top + 12);
+    ctx.stroke();
+
+    // Center red line
+    ctx.strokeStyle = "#ff4444";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2, 30);
+    ctx.lineTo(canvas.width / 2, floorY - 20);
+    ctx.stroke();
+
+    // Two blue lines
+    ctx.strokeStyle = "#2f5fb3";
+    ctx.lineWidth = 3;
+    [0.25, 0.75].forEach(t => {
+      const x = canvas.width * t;
+      ctx.beginPath();
+      ctx.moveTo(x, 30);
+      ctx.lineTo(x, floorY - 20);
+      ctx.stroke();
+    });
+
+    ctx.strokeStyle = "rgba(47, 95, 179, 0.58)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(rink.right, rink.top);
+    ctx.lineTo(rink.right, rink.bottom);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(hockeyGoal.x - 8, hockeyGoal.centerY, 34, -0.5, 0.5);
+    ctx.stroke();
+
+    // Face-off circles
+    ctx.strokeStyle = "rgba(255, 68, 68, 0.5)";
+    ctx.lineWidth = 2;
+    [[0.25, 0.4], [0.75, 0.4], [0.25, 0.7], [0.75, 0.7]].forEach(([tx, ty]) => {
+      const cx = canvas.width * tx;
+      const cy = 30 + (floorY - 50) * ty;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // No hockey wall/blocker.
+
+    // Draw hockey goal frame
+    const goalX = hockeyGoal.x;
+    const goalY = hockeyGoal.centerY;
+    const goalW = 86;
+    const goalH = 106;
+
+    // Goal posts (red frame)
+    ctx.strokeStyle = "#ff0000";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(goalX - goalW / 2, goalY - goalH / 2);
+    ctx.lineTo(goalX - goalW / 2, goalY + goalH / 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(goalX + goalW / 2, goalY - goalH / 2);
+    ctx.lineTo(goalX + goalW / 2, goalY + goalH / 2);
+    ctx.stroke();
+
+    // Cross bar (top)
+    ctx.beginPath();
+    ctx.moveTo(goalX - goalW / 2, goalY - goalH / 2);
+    ctx.lineTo(goalX + goalW / 2, goalY - goalH / 2);
+    ctx.stroke();
+
+    // Goal line (bottom)
+    ctx.beginPath();
+    ctx.moveTo(goalX - goalW / 2, goalY + goalH / 2);
+    ctx.lineTo(goalX + goalW / 2, goalY + goalH / 2);
+    ctx.stroke();
+
+    // Hockey net - typical curved net
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.lineWidth = 1.2;
+    
+    // Vertical net lines
+    for (let i = 0; i <= 6; i++) {
+      const xStart = goalX - goalW / 2 + (i * goalW) / 6;
+      const xEnd = goalX - goalW / 2 + (i * goalW) / 6 + 12;
+      ctx.beginPath();
+      ctx.moveTo(xStart, goalY - goalH / 2);
+      ctx.quadraticCurveTo((xStart + xEnd) / 2, goalY, xEnd, goalY + goalH / 2 + 15);
+      ctx.stroke();
+    }
+    
+    // Horizontal net lines
+    for (let j = 0; j <= 5; j++) {
+      const yStart = goalY - goalH / 2 + (j * (goalH + 15)) / 5;
+      ctx.beginPath();
+      ctx.moveTo(goalX - goalW / 2, yStart);
+      for (let k = 0; k <= 6; k++) {
+        const t = k / 6;
+        const x = goalX - goalW / 2 + t * goalW;
+        const xDraw = x + (Math.sin(t * Math.PI) * (12 - (j / 5) * 5));
+        if (k === 0) ctx.moveTo(x, yStart);
+        else ctx.lineTo(xDraw, yStart + (j / 5) * 12);
+      }
+      ctx.stroke();
+    }
+
+    // Goalie figure - try to draw the same hockey sprite as the shooter, mirrored to face left.
+    const goalieX = hockeyGoalie.x;
+    const goalieY = hockeyGoalie.y;
+
+    if (goalieSpriteLoaded) {
+      const spriteW = goalieSprite.width;
+      const spriteH = goalieSprite.height;
+      const desiredH = 88; // goalie size
+      const scale = desiredH / spriteH;
+      const drawW = spriteW * scale;
+      const drawH = spriteH * scale;
+
+      // Draw mirrored so the goalie faces left
+      ctx.save();
+      ctx.translate(goalieX, goalieY);
+      ctx.scale(-1, 1);
+      ctx.drawImage(goalieSprite, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+
+      // Update goalie collision radius to approximate sprite footprint
+      hockeyGoalie.r = Math.max(drawW, drawH) * 0.32;
+    } else {
+      // Fallback vector goalie: blocky, blue jersey and pads, no circles
+      // Left pad
+      ctx.fillStyle = "#003da6";
+      ctx.fillRect(goalieX - 18, goalieY + 2, 12, 18);
+
+      // Right pad
+      ctx.fillRect(goalieX + 6, goalieY + 2, 12, 18);
+
+      // Torso / jersey (blue)
+      ctx.fillStyle = "#003da6";
+      ctx.fillRect(goalieX - 10, goalieY - 14, 20, 24);
+
+      // Jersey stripes (white)
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(goalieX - 8, goalieY - 6, 16, 4);
+
+      // Helmet - small rectangular block (no circle)
+      ctx.fillStyle = "#001f60";
+      ctx.fillRect(goalieX - 8, goalieY - 28, 16, 8);
+
+      // Goalie stick (holding)
+      ctx.strokeStyle = "#8b7355";
+      ctx.lineWidth = 3;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(goalieX - 12, goalieY + 6);
+      ctx.lineTo(goalieX - 36, goalieY + 24);
+      ctx.stroke();
+
+      // Stick blade (small rectangle at end)
+      ctx.fillStyle = "#8b7355";
+      ctx.fillRect(goalieX - 44, goalieY + 20, 12, 6);
+    }
+
+  } else {
+    const floor = ctx.createLinearGradient(0, floorY - 36, 0, canvas.height);
+    floor.addColorStop(0, "#6f4f2f");
+    floor.addColorStop(1, "#583c25");
+    ctx.fillStyle = floor;
+    ctx.fillRect(0, floorY, canvas.width, canvas.height - floorY);
+
+    ctx.strokeStyle = "rgba(255,238,219,0.38)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, floorY);
+    ctx.lineTo(canvas.width, floorY);
+    ctx.stroke();
+
+    ctx.lineWidth = 3;
+    DISTANCE_LINES.forEach((line) => {
+      ctx.strokeStyle = line.color;
+      ctx.beginPath();
+      ctx.moveTo(line.x, floorY - 170);
+      ctx.lineTo(line.x, floorY);
+      ctx.stroke();
+    });
+
+    ctx.fillStyle = "#f4ede7";
+    ctx.fillRect(backboard.x, backboard.y, backboard.w, backboard.h);
+
+    ctx.strokeStyle = "#ff6f47";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(rim.left, rim.y);
+    ctx.lineTo(rim.right, rim.y);
+    ctx.stroke();
+
+    ctx.fillStyle = "#ff6f47";
+    ctx.beginPath();
+    ctx.arc(rim.left, rim.y, RIM_NODE_RADIUS, 0, Math.PI * 2);
+    ctx.arc(rim.right, rim.y, RIM_NODE_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 6; i += 1) {
+      const x = rim.left + ((rim.right - rim.left) * i) / 5;
+      ctx.beginPath();
+      ctx.moveTo(x, rim.y + 2);
+      ctx.lineTo(x + 6, rim.y + 54);
+      ctx.stroke();
+    }
+  }
+}
+
+function getCanvasPoint(event) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) * canvas.width) / rect.width,
+    y: ((event.clientY - rect.top) * canvas.height) / rect.height
+  };
+}
+
+function drawSpotDragger() {
+  const minX = LAUNCH_MIN_X;
+  const maxX = LAUNCH_MAX_X;
+  const trackY = floorY + 28;
+  const knobY = trackY;
+  const knobRadius = 13;
+
+  ctx.fillStyle = dragState.active ? "#8cffd5" : "#67c1ff";
+  ctx.beginPath();
+  ctx.arc(launcher.x, knobY, knobRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(14, 36, 56, 0.8)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(launcher.x, knobY, knobRadius, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawLauncher() {
+  if (game.sport === "soccer") {
+    const playerX = launcher.x + 30;
+    const playerY = launcher.y + 20;
+    const physics = getPhysicsFromControls();
+    const kickStrength = Math.max(0, Math.min(1, (physics.power - 30) / 62));
+
+    if (soccerSpriteLoaded) {
+      const spriteW = soccerSprite.width;
+      const spriteH = soccerSprite.height;
+            const scale = 0.12;
+      const drawW = spriteW * scale;
+      const drawH = spriteH * scale;
+      const sway = Math.sin(physics.angleRad) * 6;
+      const lift = -kickStrength * 4;
+
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.translate(playerX + sway, playerY + lift);
+      ctx.rotate(-0.08 + kickStrength * 0.1);
+      ctx.drawImage(soccerSprite, -drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+    } else {
+      // Draw soccer player kicking
+
+      // Body
+      ctx.fillStyle = "#2a5a8a";
+      ctx.beginPath();
+      ctx.arc(playerX, playerY, 11, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Head
+      ctx.fillStyle = "#ffdbac";
+      ctx.beginPath();
+      ctx.arc(playerX, playerY - 18, 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Jersey details
+      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.beginPath();
+      ctx.arc(playerX, playerY, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Kicking leg
+      const legAngle = physics.angleRad + Math.PI / 6;
+      const legLen = 28 + kickStrength * 8;
+      const legEndX = playerX + Math.cos(legAngle) * legLen;
+      const legEndY = playerY + Math.sin(legAngle) * legLen;
+
+      // Upper leg
+      ctx.strokeStyle = "#ffdbac";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(playerX, playerY + 6);
+      ctx.quadraticCurveTo(playerX + Math.cos(legAngle) * 12, playerY + Math.sin(legAngle) * 12 + 6, legEndX, legEndY);
+      ctx.stroke();
+
+      // Foot
+      ctx.fillStyle = "#2d2d2d";
+      ctx.beginPath();
+      ctx.arc(legEndX, legEndY, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Non-kicking leg (standing)
+      ctx.strokeStyle = "#ffdbac";
+      ctx.beginPath();
+      ctx.moveTo(playerX, playerY + 6);
+      ctx.lineTo(playerX - 8, playerY + 22);
+      ctx.stroke();
+
+      // Arm (balance)
+      ctx.beginPath();
+      ctx.moveTo(playerX - 11, playerY - 2);
+      ctx.lineTo(playerX - 20, playerY - 8);
+      ctx.stroke();
+
+      // Jersey number
+      ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+      ctx.font = "700 8px Arial";
+      ctx.fillText("10", playerX - 2, playerY + 2);
+    }
+
+  } else if (game.sport === "hockey") {
+      // Draw hockey player sprite if available, otherwise fallback to vector
+      const playerX = launcher.x + 25;
+      const playerY = launcher.y + 20;
+
+      if (hockeySpriteLoaded) {
+        // Draw sprite centered at playerX, playerY. Static, always facing right.
+        const spriteW = hockeySprite.width;
+        const spriteH = hockeySprite.height;
+        // Desired height for hockey player (larger)
+        const desiredH = 96;
+        const scale = desiredH / spriteH;
+        const drawW = spriteW * scale;
+        const drawH = spriteH * scale;
+        ctx.drawImage(hockeySprite, playerX - drawW / 2, playerY - drawH / 2, drawW, drawH);
+      } else {
+        // Fallback vector player (original)
+        // Body (hockey gear)
+        ctx.fillStyle = "#003da6";
+        ctx.beginPath();
+        ctx.arc(playerX, playerY, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // White jersey stripe
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(playerX - 4, playerY - 8, 8, 12);
+
+        // Head (helmet)
+        ctx.fillStyle = "#003da6";
+        ctx.beginPath();
+        ctx.arc(playerX, playerY - 18, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Helmet visor
+        ctx.strokeStyle = "#888888";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(playerX, playerY - 18, 7, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+
+        // Get physics for dynamic stick angle
+        const physics = getPhysicsFromControls();
+        const stickAngle = physics.angleRad;
+      
+        // Hockey stick (holding and angled)
+        ctx.strokeStyle = "#8b7355";
+        ctx.lineWidth = 4;
+        ctx.lineCap = "round";
+        const stickLen = 45;
+        const stickEndX = playerX + Math.cos(stickAngle) * stickLen;
+        const stickEndY = playerY + Math.sin(stickAngle) * stickLen;
+        ctx.beginPath();
+        ctx.moveTo(playerX - 6, playerY + 8);
+        ctx.lineTo(stickEndX, stickEndY);
+        ctx.stroke();
+
+        // Stick blade (curved at end)
+        const bladeX = stickEndX + Math.cos(stickAngle + Math.PI / 3) * 12;
+        const bladeY = stickEndY + Math.sin(stickAngle + Math.PI / 3) * 12;
+        ctx.fillStyle = "#8b7355";
+        ctx.beginPath();
+        ctx.moveTo(stickEndX, stickEndY);
+        ctx.lineTo(bladeX, bladeY);
+        ctx.lineTo(stickEndX + Math.cos(stickAngle - Math.PI / 3) * 10, stickEndY + Math.sin(stickAngle - Math.PI / 3) * 10);
+        ctx.closePath();
+        ctx.fill();
+
+        // Legs
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(playerX - 5, playerY + 12);
+        ctx.lineTo(playerX - 5, playerY + 24);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(playerX + 5, playerY + 12);
+        ctx.lineTo(playerX + 5, playerY + 24);
+        ctx.stroke();
+      }
+
+   } else {
+    if (basketballSpriteLoaded) {
+      const playerX = launcher.x - 12;
+      const playerY = launcher.y - 2;
+
+      const spriteW = basketballSprite.width;
+      const spriteH = basketballSprite.height;
+      const scale = 0.10;
+      const drawW = spriteW * scale;
+      const drawH = spriteH * scale;
+
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      // IMPORTANT: this uses launcher.x / launcher.y, not ball.x / ball.y
+      ctx.drawImage(
+        basketballSprite,
+        playerX - drawW / 2,
+        playerY - drawH / 2,
+        drawW,
+        drawH
+      );
+
+      ctx.restore();
+    } else {
+      const physics = getPhysicsFromControls();
+
+      ctx.fillStyle = "#2a3e58";
+      ctx.beginPath();
+      ctx.roundRect(launcher.x - 44, launcher.y + 12, 88, 66, 16);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffd2a7";
+      ctx.beginPath();
+      ctx.arc(launcher.x - 12, launcher.y - 2, 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      const len = 56;
+      const armX = launcher.x + Math.cos(physics.angleRad) * len;
+      const armY = launcher.y - Math.sin(physics.angleRad) * len;
+
+      ctx.strokeStyle = "#ffd2a7";
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(launcher.x + 2, launcher.y + 32);
+      ctx.lineTo(armX, armY);
+      ctx.stroke();
+    }
+  }
+}
+
+function getGoalGuideX() {
+  if (game.sport === "soccer") return soccerGoal.x + soccerGoal.w / 2;
+  if (game.sport === "hockey") return hockeyGoal.x + hockeyGoal.w / 2;
+  return rim.left + (rim.right - rim.left) / 2;
+}
+
+function drawBall() {
+  ctx.save();
+  ctx.translate(ball.x, ball.y);
+  
+  if (game.sport === "soccer") {
+    // Base white ball
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Black pentagons and hexagons pattern (classic soccer ball)
+    ctx.fillStyle = "#000000";
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 0.5;
+
+    // Pentagon at top
+    const drawPentagon = (cx, cy, size) => {
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2;
+        const x = cx + Math.cos(angle) * size;
+        const y = cy + Math.sin(angle) * size;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    };
+
+    const drawHexagon = (cx, cy, size) => {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * 2 * Math.PI) / 6;
+        const x = cx + Math.cos(angle) * size;
+        const y = cy + Math.sin(angle) * size;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    };
+
+    const size = 1.8;
+    drawPentagon(0, -3, size);
+    drawHexagon(-3, 1.5, size);
+    drawHexagon(3, 1.5, size);
+    drawPentagon(0, 4.5, size);
+
+    // Outer circle
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (game.sport === "hockey") {
+    // Hockey puck - black disk
+    ctx.fillStyle = "#1a1a1a";
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r - 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Puck edges - metallic look
+    ctx.strokeStyle = "#888888";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r - 2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Small highlights for depth
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.beginPath();
+    ctx.arc(-3, -3, 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = "#f89237";
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#6a320b";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r - 2, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, ball.r - 2, Math.PI + 0.2, Math.PI * 2 - 0.2);
+    ctx.stroke();
+  }
+  
+  ctx.restore();
+}
+
+function drawShotPath() {
+  if (!getActiveLevelConfig().showLivePath) return;
+  if (ball.path.length < 2) return;
+  ctx.strokeStyle = "rgba(122, 233, 193, 0.95)";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(ball.path[0].x, ball.path[0].y);
+  for (let i = 1; i < ball.path.length; i += 1) ctx.lineTo(ball.path[i].x, ball.path[i].y);
+  ctx.stroke();
+}
+
+function drawArrow(x1, y1, x2, y2, color, label) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 6) return;
+  const ux = dx / len;
+  const uy = dy / len;
+  const arrowSize = 8;
+
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - ux * arrowSize - uy * 4, y2 - uy * arrowSize + ux * 4);
+  ctx.lineTo(x2 - ux * arrowSize + uy * 4, y2 - uy * arrowSize - ux * 4);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.font = "700 13px Inter, sans-serif";
+  ctx.fillText(label, x2 + 6, y2 - 6);
+}
+
+function clampMagnitude(value, maxAbs, minAbs = 0) {
+  if (Math.abs(value) < minAbs) return value >= 0 ? minAbs : -minAbs;
+  return Math.max(-maxAbs, Math.min(maxAbs, value));
+}
+
+function drawPhysicsVectors() {
+  const physics = activeShotPhysics || getPhysicsFromControls();
+  const currentVX = ball.flying ? ball.vx : physics.vx0;
+  const currentVY = ball.flying ? ball.vy : physics.vy0;
+
+  const vxLen = clampMagnitude(currentVX * 0.12, 84, 10);
+  const vyLen = clampMagnitude(currentVY * 0.12, 84, 10);
+  const gLen = clampMagnitude(physics.gravity * 2.2, 84, 20);
+
+  drawArrow(ball.x, ball.y, ball.x + vxLen, ball.y, "#6ee6ff", "vx");
+  drawArrow(ball.x, ball.y, ball.x, ball.y + vyLen, "#ff9ec7", "vy");
+  drawArrow(ball.x + 18, ball.y, ball.x + 18, ball.y + gLen, "#ffd07f", "g");
+}
+
+function drawAngleGuide() {
+  if (game.sport !== "soccer") return;
+  if (ball.flying) return;
+  const targetX = getGoalGuideX();
+  ctx.strokeStyle = "#8cffd5";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(launcher.x, launcher.y);
+  ctx.lineTo(targetX, launcher.y);
+  ctx.stroke();
+  ctx.fillStyle = "#8cffd5";
+  ctx.font = "800 15px Inter, sans-serif";
+  ctx.fillText("Goal line", targetX + 8, launcher.y - 8);
+}
+
+function drawTrajectoryPreview() {
+  if (!previewToggle.checked || ball.flying) return;
+  if (!getActiveLevelConfig().showPreview) return;
+  const physics = getPhysicsFromControls();
+  const preview = {
+    x: launcher.x + 38,
+    y: launcher.y - 18,
+    vx: physics.vx0,
+    vy: physics.vy0,
+    t: 0
+  };
+
+  ctx.strokeStyle = "rgba(122, 233, 193, 0.75)";
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(preview.x, preview.y);
+  for (let i = 0; i < 180; i += 1) {
+    physicsStep(preview, physics, 1 / 60);
+    ctx.lineTo(preview.x, preview.y);
+    if (preview.y > canvas.height || preview.x > canvas.width || preview.x < 0) break;
+  }
+  ctx.stroke();
+}
+
+function render() {
+  drawCourt();
+  updateAndDrawConfetti();
+  drawSpotDragger();
+  drawAngleGuide();
+  drawTrajectoryPreview();
+  drawLauncher();
+  drawShotPath();
+  drawBall();
+  drawPhysicsVectors();
+  updateReadout();
+  requestAnimationFrame(render);
+}
+
+function showAuthMessage(text, isError = false) {
+  authMessage.textContent = text;
+  authMessage.style.color = isError ? "var(--danger)" : "#cce7ff";
+}
+
+function setGuestUser() {
+  game.userKey = null;
+  game.playerName = "Guest";
+  game.isGuest = true;
+  game.best = getCurrentHighScore();
+  welcomeName.textContent = "Guest";
+  hudName.textContent = "Guest";
+}
+
+function showLandingWelcome() {
+  showAuthMessage("Guest mode only. Tap continue to play.");
+}
+
+guestBtn.addEventListener("click", () => {
+  setGuestUser();
+  showAuthMessage("Choose your sport.");
+  showScreen("sport");
+});
+
+sportOptions.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    game.sport = btn.dataset.sport;
+    syncSportTheme();
+    sportOptions.forEach((b) => b.classList.toggle("selected", b.dataset.sport === game.sport));
+    showScreen("level");
+  });
+});
+
+sportBackBtn.addEventListener("click", () => {
+  syncSportTheme();
+showScreen("name");
+});
+
+levelOptions.forEach((btn) => {
+  btn.addEventListener("click", () => setLevel(btn.dataset.level));
+});
+
+startGameBtn.addEventListener("click", () => {
+  startSelectedLevel();
+});
+
+changeNameBtn.addEventListener("click", () => {
+  hideShotNotice();
+  hideShotReview();
+  setGuestUser();
+  showScreen("sport");
+});
+
+shootBtn.addEventListener("click", shoot);
+resetBtn.addEventListener("click", () => {
+  hideShotNotice();
+  hideShotReview();
+  resetBall();
+  updateReadout();
+  feedbackMessage.textContent = "Shot reset.";
+});
+backBtn.addEventListener("click", () => {
+  hideShotNotice();
+  hideShotReview();
+  showScreen("level");
+});
+tryAgainBtn.addEventListener("click", () => {
+  ball.path = [];
+  confettiPieces.length = 0;
+  hideShotNotice();
+  hideShotReview();
+  resetBall();
+  updateReadout();
+  feedbackMessage.textContent = "Try another shot.";
+});
+reviewTryAgainBtn.addEventListener("click", () => {
+  ball.path = [];
+  confettiPieces.length = 0;
+  hideShotNotice();
+  hideShotReview();
+  resetBall();
+  updateReadout();
+  feedbackMessage.textContent = "Try another shot.";
+});
+nextChallengeBtn.addEventListener("click", () => {
+  const nextLevel = nextChallengeBtn.dataset.nextLevel;
+  if (!nextLevel || !levels[nextLevel]) return;
+  hideShotNotice();
+  hideShotReview();
+  setLevel(nextLevel);
+  startSelectedLevel();
+});
+distanceInput.addEventListener("input", () => {
+  if (ball.flying || game.shotResolved) return;
+  const cfg = getActiveLevelConfig();
+  if (cfg.distanceMode.type === "spots") {
+    setCurrentSpotByX(Number(distanceInput.value));
+  } else {
+    setLauncherX(Number(distanceInput.value));
+  }
+});
+
+verticalInput.addEventListener("input", () => {
+  if (ball.flying || game.shotResolved) return;
+  setLauncherY(Number(verticalInput.value));
+  updateLabels();
+  updateReadout();
+});
+
+function handleSpotDrag(event) {
+  const cfg = getActiveLevelConfig();
+  if (ball.flying || game.shotResolved) return;
+  const pos = getCanvasPoint(event);
+  if (cfg.distanceMode.type === "spots") {
+    setCurrentSpotByX(pos.x);
+  } else {
+    setLauncherX(pos.x);
+  }
+}
+
+canvas.addEventListener("pointerdown", (event) => {
+  if (ball.flying || game.shotResolved) return;
+  const pos = getCanvasPoint(event);
+  const handleY = floorY + 28;
+  const handleDistance = Math.hypot(pos.x - launcher.x, pos.y - handleY);
+  const onTrack = pos.y > floorY + 8 && pos.y < floorY + 46;
+  if (handleDistance > 28 && !onTrack) return;
+
+  dragState.active = true;
+  dragState.pointerId = event.pointerId;
+  canvas.classList.add("dragging");
+  canvas.setPointerCapture(event.pointerId);
+  handleSpotDrag(event);
+});
+
+canvas.addEventListener("pointermove", (event) => {
+  if (!dragState.active || dragState.pointerId !== event.pointerId) return;
+  handleSpotDrag(event);
+});
+
+function stopSpotDrag(event) {
+  if (!dragState.active || dragState.pointerId !== event.pointerId) return;
+  dragState.active = false;
+  dragState.pointerId = null;
+  canvas.classList.remove("dragging");
+  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+}
+
+canvas.addEventListener("pointerup", stopSpotDrag);
+canvas.addEventListener("pointercancel", stopSpotDrag);
+
+[angleInput, powerInput, gravityInput, distanceInput, verticalInput].forEach((input) => {
+  input.addEventListener("input", () => {
+    updateLabels();
+    updateReadout();
+  });
+});
+[angleInput, powerInput, gravityInput].forEach((input) => {
+  input.addEventListener("change", () => {
+    clampNumericInputs();
+    updateLabels();
+    updateReadout();
+  });
+});
+
+updateLabels();
+setLevel("easy");
+setGuestUser();
+showLandingWelcome();
+showScreen("name");
+hideShotNotice();
+hideShotReview();
+updateReadout();
+render();
