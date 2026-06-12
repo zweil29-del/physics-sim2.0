@@ -14,6 +14,7 @@ const startGameBtn = document.getElementById("startGameBtn");
 const changeNameBtn = document.getElementById("changeNameBtn");
 const challengeTitle = document.getElementById("challengeTitle");
 const challengeSummary = document.getElementById("challengeSummary");
+const challengeTip = document.getElementById("challengeTip");
 const challengeList = document.getElementById("challengeList");
 
 const hudName = document.getElementById("hudName");
@@ -30,13 +31,16 @@ const bestStat = document.getElementById("bestStat");
 const angleInput = document.getElementById("angleInput");
 const powerInput = document.getElementById("powerInput");
 const gravityInput = document.getElementById("gravityInput");
+const airResistanceInput = document.getElementById("airResistanceInput");
 const distanceInput = document.getElementById("distanceInput");
 const verticalInput = document.getElementById("verticalInput");
 const previewToggle = document.getElementById("previewToggle");
 const distanceValue = document.getElementById("distanceValue");
+const airResistanceValue = document.getElementById("airResistanceValue");
 const spotRow = document.getElementById("spotRow");
 const verticalValue = document.getElementById("verticalValue");
 const verticalRow = document.getElementById("verticalRow");
+const airResistanceRow = document.getElementById("airResistanceRow");
 const spotInfo = document.getElementById("spotInfo");
 
 const angleValue = document.getElementById("angleValue");
@@ -54,6 +58,13 @@ const timeReadout = document.getElementById("timeReadout");
 const xEqReadout = document.getElementById("xEqReadout");
 const yEqReadout = document.getElementById("yEqReadout");
 const coordNote = document.getElementById("coordNote");
+const fullEquation = document.getElementById("fullEquation");
+const kePortion = document.getElementById("kePortion");
+const pePortion = document.getElementById("pePortion");
+const keLabel = document.getElementById("keLabel");
+const peLabel = document.getElementById("peLabel");
+const totalLabel = document.getElementById("totalLabel");
+const sliderInfoPopup = document.getElementById("sliderInfoPopup");
 
 const shootBtn = document.getElementById("shootBtn");
 const resetBtn = document.getElementById("resetBtn");
@@ -277,6 +288,85 @@ const game = {
 let activeShotPhysics = null;
 const dragState = { active: false, pointerId: null };
 const LEVEL_ORDER = ["easy", "medium", "hard"];
+const LEVEL_PROGRESS_STORAGE_KEY = "shotlab-level-progress";
+let storedLevelProgress = {};
+
+function loadLevelProgress() {
+  try {
+    const raw = localStorage.getItem(LEVEL_PROGRESS_STORAGE_KEY);
+    storedLevelProgress = raw ? JSON.parse(raw) : {};
+  } catch (error) {
+    storedLevelProgress = {};
+  }
+}
+
+function saveLevelProgress() {
+  try {
+    localStorage.setItem(LEVEL_PROGRESS_STORAGE_KEY, JSON.stringify(storedLevelProgress));
+  } catch (error) {
+    // Ignore storage issues.
+  }
+}
+
+function getCompletedLevelsForSport(sport) {
+  const sportData = storedLevelProgress[sport] || {};
+  return LEVEL_ORDER.filter((level) => Boolean(sportData[level]));
+}
+
+function isLevelCompleted(sport, level) {
+  return Boolean(storedLevelProgress[sport]?.[level]);
+}
+
+function markLevelCompleted(sport, level) {
+  if (!storedLevelProgress[sport]) storedLevelProgress[sport] = {};
+  const wasAlreadyComplete = Boolean(storedLevelProgress[sport][level]);
+  storedLevelProgress[sport][level] = true;
+  saveLevelProgress();
+  updateCompletionBadges();
+  return !wasAlreadyComplete;
+}
+
+function updateLevelButtonBadges() {
+  levelOptions.forEach((btn) => {
+    const level = btn.dataset.level;
+    const badge = btn.querySelector(".completion-mark");
+    const completed = isLevelCompleted(game.sport, level);
+    // Add a direct class hook for visual completed state
+    btn.classList.toggle("completed", completed);
+    if (badge) {
+      badge.textContent = completed ? "✓" : "";
+      badge.title = completed ? `${level} completed` : `Not completed yet`;
+    }
+  });
+}
+
+function updateSportButtonBadges() {
+  sportOptions.forEach((btn) => {
+    const sport = btn.dataset.sport;
+    const badge = btn.querySelector(".completion-mark");
+    const completedLevels = getCompletedLevelsForSport(sport).length;
+    // visually mark sport as fully completed when all levels done
+    btn.classList.toggle("all-complete", completedLevels === LEVEL_ORDER.length);
+    if (badge) {
+      if (completedLevels === 0) {
+        badge.textContent = "";
+        badge.title = "No completed levels yet";
+      } else if (completedLevels === LEVEL_ORDER.length) {
+        badge.textContent = "✓";
+        badge.title = "All levels completed";
+      } else {
+        badge.textContent = `${completedLevels}/${LEVEL_ORDER.length}`;
+        badge.title = `${completedLevels} of ${LEVEL_ORDER.length} levels completed`;
+      }
+    }
+  });
+}
+
+function updateCompletionBadges() {
+  updateSportButtonBadges();
+  updateLevelButtonBadges();
+}
+
 const confettiPieces = [];
 
 const levels = {
@@ -288,6 +378,8 @@ const levels = {
     showPreview: true,
     showLivePath: true,
     challengeSummary: "Starter",
+    learningGoal: "Learn how angle, power, and gravity shape the flight path.",
+    physicsTip: "Angle changes height, power changes range, and gravity makes the ball drop faster.",
     challenges: [
       "2 makes from Mid-range",
       "Try 2 angle values",
@@ -296,7 +388,8 @@ const levels = {
     sliderRules: {
       angle: { min: 20, max: 85, step: 1, value: 52 },
       power: { min: 30, max: 100, step: 1, value: 62 },
-      gravity: { min: 6, max: 14, step: 0.1, value: 9.8 }
+      gravity: { min: 6, max: 14, step: 0.1, value: 9.8 },
+      airResistance: { min: 0, max: 0.02, step: 0.001, value: 0.006 }
     },
     forgiveness: 16
   },
@@ -313,6 +406,8 @@ const levels = {
     showPreview: true,
     showLivePath: true,
     challengeSummary: "Tighter targets",
+    learningGoal: "Learn how tighter launch parameters create more precise arcs.",
+    physicsTip: "Small angle changes shift height, and small power changes shift distance.",
     challenges: [
       "3 makes from Paint",
       "3 makes from Three-point",
@@ -321,7 +416,8 @@ const levels = {
     sliderRules: {
       angle: { min: 40, max: 64, step: 2, value: 52 },
       power: { min: 44, max: 80, step: 4, value: 64 },
-      gravity: { min: 9.0, max: 10.8, step: 0.3, value: 9.9 }
+      gravity: { min: 9.0, max: 10.8, step: 0.3, value: 9.9 },
+      airResistance: { min: 0, max: 0.02, step: 0.001, value: 0.006 }
     },
     forgiveness: 10
   },
@@ -338,6 +434,8 @@ const levels = {
     showPreview: false,
     showLivePath: false,
     challengeSummary: "Final test",
+    learningGoal: "Practice predicting the full trajectory using only physics intuition.",
+    physicsTip: "A higher launch gives more time in flight; stronger gravity pulls the path down faster.",
     challenges: [
       "3 makes from each line (9 total)",
       "No guide, no live path",
@@ -346,7 +444,8 @@ const levels = {
     sliderRules: {
       angle: { min: 38, max: 72, step: 1, value: 54 },
       power: { min: 46, max: 84, step: 2, value: 68 },
-      gravity: { min: 8.6, max: 11.6, step: 0.2, value: 9.8 }
+      gravity: { min: 8.6, max: 11.6, step: 0.2, value: 9.8 },
+      airResistance: { min: 0, max: 0.02, step: 0.001, value: 0.006 }
     },
     forgiveness: 6
   }
@@ -519,6 +618,9 @@ function saveCurrentHighScore(score) {
 }
 
 function showScreen(screen) {
+  if (screen === "sport" || screen === "level") {
+    updateCompletionBadges();
+  }
   nameScreen.classList.toggle("hidden", screen !== "name");
   sportScreen.classList.toggle("hidden", screen !== "sport");
   levelScreen.classList.toggle("hidden", screen !== "level");
@@ -763,10 +865,13 @@ function generateShotSummary(summary) {
   
   resultText += `Your projectile reached a <strong>max height of ${peakHeight.toFixed(2)}m</strong> and traveled <strong>${range.toFixed(2)}m</strong> `;
   resultText += `in <strong>${summary.flightTime.toFixed(2)}s</strong>. `;
+  const cfg = getActiveLevelConfig();
   resultText += `Launched at <strong>${summary.angle.toFixed(0)}°</strong> with initial speed of <strong>${initialSpeed.toFixed(1)} m/s</strong>. `;
   resultText += `The steepest slope occurred near launch (${avgSlope.toFixed(2)}). `;
   resultText += `Gravity (${summary.gravity.toFixed(1)} m/s²) caused vertical velocity to decrease by `;
   resultText += `<strong>${(summary.gravity * summary.flightTime).toFixed(1)} m/s</strong> over the flight.`;
+  resultText += `<br/><br/><strong>Learning takeaway:</strong> ${cfg.learningGoal || "Compare angle, power, and gravity to shape the path."}`;
+  resultText += `<br/><strong>Tip:</strong> ${cfg.physicsTip || "Use angle for height, power for distance, and gravity to control drop."}`;
   
   summaryText.innerHTML = resultText;
 }
@@ -1006,6 +1111,9 @@ function updateLabels() {
   angleValue.textContent = `${Number(angleInput.value).toFixed(0)}°`;
   powerValue.textContent = Number(powerInput.value).toFixed(0);
   gravityValue.textContent = Number(gravityInput.value).toFixed(1);
+  if (airResistanceValue) {
+    airResistanceValue.textContent = Number(airResistanceInput.value).toFixed(3);
+  }
   distanceValue.textContent = nearestDistanceLabel(launcher.x);
 }
 
@@ -1015,6 +1123,9 @@ function setInputMode(cfg) {
     [powerInput, cfg.sliderRules.power],
     [gravityInput, cfg.sliderRules.gravity]
   ];
+  if (cfg.sliderRules.airResistance) {
+    controls.push([airResistanceInput, cfg.sliderRules.airResistance]);
+  }
 
   // Easy = sliders. Medium/Hard = typed number boxes.
   // Horizontal launch distance and vertical player height remain draggable sliders.
@@ -1033,6 +1144,9 @@ function clampNumericInputs() {
   applySliderRule(angleInput, cfg.sliderRules.angle);
   applySliderRule(powerInput, cfg.sliderRules.power);
   applySliderRule(gravityInput, cfg.sliderRules.gravity);
+  if (cfg.sliderRules.airResistance) {
+    applySliderRule(airResistanceInput, cfg.sliderRules.airResistance);
+  }
 }
 
 function applyLevelRules() {
@@ -1052,10 +1166,15 @@ function applyLevelRules() {
   const angleRow = angleInput.closest(".control-row");
   const powerRow = powerInput.closest(".control-row");
   const gravityRow = gravityInput.closest(".control-row");
+  const airResistanceRowEl = airResistanceRow;
 
   [angleRow, powerRow, gravityRow].forEach((row) => {
     if (row) row.classList.remove("hidden");
   });
+
+  if (airResistanceRowEl) {
+    airResistanceRowEl.classList.toggle("hidden", game.sport !== "basketball");
+  }
 
   // Always keep horizontal distance and vertical player movement available.
   spotRow.classList.remove("hidden");
@@ -1073,6 +1192,9 @@ function updateChallengePanel() {
   const cfg = getActiveLevelConfig();
   challengeTitle.textContent = `${cfg.label}`;
   challengeSummary.textContent = cfg.challengeSummary;
+  challengeTip.textContent = cfg.learningGoal
+    ? `${cfg.learningGoal} ${cfg.physicsTip || ''}`.trim()
+    : "Fine-tune angle, power, and gravity to shape the projectile flight.";
   challengeList.innerHTML = cfg.challenges.map((item, index) => `${index + 1}. ${item}`).join("<br/>");
 }
 function emitConfetti(x, y, count = 36) {
@@ -1222,6 +1344,9 @@ function finalizeSuccessfulShot(goalMessage, confettiX, confettiY) {
 
   game.streak += 1;
   const spotProgress = registerSpotMake();
+  if (spotProgress.allDone) {
+    markLevelCompleted(game.sport, game.level);
+  }
   if (game.score > game.best) {
     game.best = game.score;
     saveCurrentHighScore(game.best);
@@ -1281,6 +1406,15 @@ function setLevel(level) {
   syncSportTheme();
   levelOptions.forEach((btn) => btn.classList.toggle("selected", btn.dataset.level === level));
   updateChallengePanel();
+  updateCompletionBadges();
+}
+
+function setSport(sport) {
+  game.sport = sport;
+  syncSportTheme();
+  sportOptions.forEach((b) => b.classList.toggle("selected", b.dataset.sport === game.sport));
+  setLevel("easy");
+  updateCompletionBadges();
 }
 
 function getNextLevel(level) {
@@ -1321,6 +1455,7 @@ function getPhysicsFromControls() {
   let angleRad = (angleDeg * Math.PI) / 180;
   const power = Number(powerInput.value);
   const gravity = Number(gravityInput.value);
+  const airResistance = airResistanceInput ? Number(airResistanceInput.value) : 0;
 
   const speed = power * LAUNCH_SPEED_SCALE * (game.sport === "hockey" ? HOCKEY_SPEED_MULTIPLIER : 1);
 
@@ -1353,7 +1488,7 @@ function getPhysicsFromControls() {
     vy0 = -Math.abs(Math.sin(angleRad) * speed);
   }
 
-  return { angleDeg, angleRad, power, gravity, speed, vx0, vy0 };
+  return { angleDeg, angleRad, power, gravity, airResistance, speed, vx0, vy0 };
 }
 function computeAccelerations(vx, vy, physics) {
   if (game.sport === "hockey") {
@@ -1362,6 +1497,14 @@ function computeAccelerations(vx, vy, physics) {
     return {
       ax: -vx * dragCoef,
       ay: physics.gravity * hockeyGravityScale - vy * dragCoef
+    };
+  }
+
+  if (game.sport === "basketball") {
+    const dragCoef = physics.airResistance || 0;
+    return {
+      ax: -vx * dragCoef,
+      ay: physics.gravity * GRAVITY_PIXEL_SCALE - vy * dragCoef
     };
   }
 
@@ -1751,9 +1894,52 @@ function updateReadout() {
   yEqReadout.textContent =
     `${y0.toFixed(1)} + (${physics.vy0.toFixed(1)})(${t.toFixed(2)}) + 0.5(${displayAy.toFixed(1)})(${(t * t).toFixed(2)}) = ${yIdeal.toFixed(1)}`;
 
-  coordNote.textContent = game.sport === "hockey"
-    ? "Hockey: angle adds a small lift, power changes how long gravity can pull the puck down, and gravity controls the drop."
-    : "More power = farther. More angle = higher arc. More gravity = quicker drop.";
+  const cfg = getActiveLevelConfig();
+  coordNote.textContent = cfg.physicsTip ||
+    (game.sport === "hockey"
+      ? "Hockey: angle adds a small lift, power changes how long gravity can pull the puck down, and gravity controls the drop."
+      : "More power = farther. More angle = higher arc. More gravity = quicker drop.");
+
+  // Update the full equation block with plugged-in values
+  if (fullEquation) {
+    const pixelsToMeters = PIXELS_TO_METERS || 0.02;
+    const x0 = (ball.flying ? ball.x0 : launcher.x + 38);
+    const y0 = (ball.flying ? ball.y0 : launcher.y - 18);
+    const vx = physics.vx0;
+    const vy = physics.vy0;
+    const a = game.sport === "hockey" ? physics.gravity * 14 : physics.gravity * GRAVITY_PIXEL_SCALE;
+    const x0m = (x0 * pixelsToMeters).toFixed(2);
+    const y0m = (y0 * pixelsToMeters).toFixed(2);
+    const vxm = (vx * pixelsToMeters).toFixed(2);
+    const vym = (vy * pixelsToMeters).toFixed(2);
+    const am = (a * pixelsToMeters).toFixed(2);
+    const lines = [];
+    lines.push(`x(t) = ${x0.toFixed(1)} px + (${vx.toFixed(1)} px/s)·t  →  ${x0m} m + (${vxm} m/s)·t`);
+    lines.push(`y(t) = ${y0.toFixed(1)} px + (${vy.toFixed(1)} px/s)·t + 0.5·(${a.toFixed(1)} px/s²)·t²  →  ${y0m} m + (${vym} m/s)·t + 0.5·(${am} m/s²)·t²`);
+    fullEquation.textContent = lines.join('\n');
+  }
+
+  if (kePortion && pePortion && keLabel && peLabel && totalLabel) {
+    const pixelsToMeters = PIXELS_TO_METERS || 0.02;
+    const mass = 1; // assume 1 kg for easy comparison
+    const currentSpeedPx = ball.flying ? Math.hypot(ball.vx, ball.vy) : physics.speed;
+    const speedMs = currentSpeedPx * pixelsToMeters;
+    const heightMeters = ball.flying ? Math.max(0, (ball.flying ? (ball.y0 - ball.y) : 0) * pixelsToMeters) : 0;
+    const kineticEnergy = 0.5 * mass * speedMs * speedMs;
+    const potentialEnergy = mass * physics.gravity * heightMeters;
+    const totalEnergy = kineticEnergy + potentialEnergy;
+    
+    // Calculate percentages for the segmented bar
+    const kePercent = totalEnergy > 0 ? (kineticEnergy / totalEnergy) * 100 : 0;
+    const pePercent = totalEnergy > 0 ? (potentialEnergy / totalEnergy) * 100 : 0;
+
+    kePortion.style.width = `${kePercent}%`;
+    pePortion.style.width = `${pePercent}%`;
+    
+    keLabel.textContent = `KE: ${kineticEnergy.toFixed(1)} J`;
+    peLabel.textContent = `PE: ${potentialEnergy.toFixed(1)} J`;
+    totalLabel.textContent = `Total: ${totalEnergy.toFixed(1)} J`;
+  }
 }
 
 function getMissFeedback(finalX) {
@@ -1872,6 +2058,9 @@ function shoot() {
     if (earlyScored) {
       game.streak += 1;
       const spotProgress = registerSpotMake();
+      if (spotProgress.allDone) {
+        markLevelCompleted(game.sport, game.level);
+      }
       if (game.score > game.best) {
         game.best = game.score;
         saveCurrentHighScore(game.best);
@@ -2104,6 +2293,9 @@ function shoot() {
     if (scoredThisFrame) {
       game.streak += 1;
       const spotProgress = registerSpotMake();
+      if (spotProgress.allDone) {
+        markLevelCompleted(game.sport, game.level);
+      }
       if (game.score > game.best) {
         game.best = game.score;
         saveCurrentHighScore(game.best);
@@ -3138,16 +3330,15 @@ guestBtn.addEventListener("click", () => {
 
 sportOptions.forEach((btn) => {
   btn.addEventListener("click", () => {
-    game.sport = btn.dataset.sport;
-    syncSportTheme();
-    sportOptions.forEach((b) => b.classList.toggle("selected", b.dataset.sport === game.sport));
+    setSport(btn.dataset.sport);
     showScreen("level");
   });
 });
 
 sportBackBtn.addEventListener("click", () => {
   syncSportTheme();
-showScreen("name");
+  updateCompletionBadges();
+  showScreen("name");
 });
 
 levelOptions.forEach((btn) => {
@@ -3162,6 +3353,7 @@ changeNameBtn.addEventListener("click", () => {
   hideShotNotice();
   hideShotReview();
   setGuestUser();
+  updateCompletionBadges();
   showScreen("sport");
 });
 
@@ -3176,6 +3368,7 @@ resetBtn.addEventListener("click", () => {
 backBtn.addEventListener("click", () => {
   hideShotNotice();
   hideShotReview();
+  updateCompletionBadges();
   showScreen("level");
 });
 tryAgainBtn.addEventListener("click", () => {
@@ -3263,13 +3456,77 @@ function stopSpotDrag(event) {
 canvas.addEventListener("pointerup", stopSpotDrag);
 canvas.addEventListener("pointercancel", stopSpotDrag);
 
-[angleInput, powerInput, gravityInput, distanceInput, verticalInput].forEach((input) => {
+const sliderInfoData = {
+  angleInput: {
+    title: "Launch Angle",
+    description: "Adjusts the projectile's vertical and horizontal components using trigonometry. Angle split into vx/vy is based on sine and cosine functions discovered in ancient Greek trigonometry.",
+    source: "Hipparchus & early trigonometry"
+  },
+  powerInput: {
+    title: "Launch Power",
+    description: "Scales initial speed and determines how far the shot can travel. This idea comes from early projectile motion studies, later formalized by Galileo.",
+    source: "Galileo Galilei"
+  },
+  gravityInput: {
+    title: "Gravity",
+    description: "Pulls the projectile back toward the floor with a constant acceleration. This acceleration is described by Isaac Newton's laws of motion.",
+    source: "Isaac Newton"
+  },
+  airResistanceInput: {
+    title: "Air Resistance",
+    description: "Applies drag opposing motion to slow the ball in flight. Modern drag models trace back to fluid dynamics work in the 18th century.",
+    source: "Jean le Rond d'Alembert"
+  },
+  distanceInput: {
+    title: "Launch Distance",
+    description: "Changes where the shot is released horizontally. Distance controls the starting point and is part of the projectile's initial position equation.",
+    source: "Ancient geometry"
+  },
+  verticalInput: {
+    title: "Player Height",
+    description: "Sets the vertical launch position for the shot. Height appears directly in the initial position terms of the trajectory equations.",
+    source: "Surveyors & early geometry"
+  }
+};
+
+function placeSliderInfo(input) {
+  if (!sliderInfoPopup || !input) return;
+  const rect = input.getBoundingClientRect();
+  const topSpace = rect.top;
+  const bottomSpace = window.innerHeight - rect.bottom;
+  sliderInfoPopup.classList.remove("top", "bottom");
+  if (topSpace < 140 && bottomSpace > topSpace) {
+    sliderInfoPopup.classList.add("top");
+  } else {
+    sliderInfoPopup.classList.add("bottom");
+  }
+}
+
+function showSliderInfo(input) {
+  if (!sliderInfoPopup || !input || !sliderInfoData[input.id]) return;
+  const info = sliderInfoData[input.id];
+  sliderInfoPopup.innerHTML = `<strong>${info.title}</strong><span>${info.description}</span><em>Source: ${info.source}</em>`;
+  sliderInfoPopup.classList.remove("hidden");
+  placeSliderInfo(input);
+}
+
+function hideSliderInfo() {
+  if (sliderInfoPopup) sliderInfoPopup.classList.add("hidden");
+}
+
+[angleInput, powerInput, gravityInput, airResistanceInput, distanceInput, verticalInput].forEach((input) => {
+  if (!input) return;
   input.addEventListener("input", () => {
     updateLabels();
     updateReadout();
   });
+  input.addEventListener("focus", () => showSliderInfo(input));
+  input.addEventListener("blur", hideSliderInfo);
+  input.addEventListener("pointerenter", () => showSliderInfo(input));
+  input.addEventListener("pointerleave", hideSliderInfo);
 });
-[angleInput, powerInput, gravityInput].forEach((input) => {
+[angleInput, powerInput, gravityInput, airResistanceInput].forEach((input) => {
+  if (!input) return;
   input.addEventListener("change", () => {
     clampNumericInputs();
     updateLabels();
@@ -3277,6 +3534,8 @@ canvas.addEventListener("pointercancel", stopSpotDrag);
   });
 });
 
+loadLevelProgress();
+updateCompletionBadges();
 updateLabels();
 setLevel("easy");
 setGuestUser();
